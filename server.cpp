@@ -177,8 +177,14 @@ int main(int argc, char* argv[])
             {
                 rqst_arr[a]=client_request[a];
             }
-           client_args = split(rqst_arr, ' ');
+           client_args = split(rqst_arr, ' '); //now we have a vector of user args.  Should be 3.
 
+           std::string client_rqst_type = rqst_arr[0];
+           std::string client_host = rqst_arr[1];
+           std::string client_HTTP_version = rqst_arr[2];
+           //If more than 3 args, SEND ERR MSG TO CLIENT
+           std::string client_port = "80";
+           
 
             // user now stores username
 //			dup2(new_fd, 1);
