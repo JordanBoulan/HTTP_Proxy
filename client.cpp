@@ -46,22 +46,14 @@ int main(int argc, char *argv[])
 	int rv;
 
 
-	if (argc != 2) {
-	    fprintf(stderr,"usage:client username@hostname.com:port\n");
+	if (argc != 3) {
+	    fprintf(stderr,"usage: [proxyserver.com] [port] \n");
 	    exit(1);
 	}
 
-	std::string connectionString = argv[1];
-	if (connectionString.find('@') == (size_t) -1 || connectionString.find(':') == (size_t) -1){
-		fprintf(stderr,"argument error! usage:client username@hostname.com:port\n");
-	    exit(1);
-	}
-	std::string name = connectionString.substr(0, connectionString.find('@'));
-	std::string host = connectionString.substr(connectionString.find('@')+1, connectionString.find(':') - connectionString.find('@')-1);
-	std::string port = connectionString.substr(connectionString.find(':')+1, -1);
-
-
-
+	std::string host = argv[1];
+	std::string port = argv[2];
+	
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
@@ -99,10 +91,14 @@ int main(int argc, char *argv[])
 
 	freeaddrinfo(servinfo); // all done with this structure
     int bytesSent = -2;
-    int bytesToSend = name.length()+1;
-    char* sendBuf = new char[bytesToSend];
+  	std::string request;
+  	printf("Please enter your request as an absolute URI: ");
+  	std::getline(std::cin, request);
+  	printf("\n%s\n", request.c_str() );
+  	int bytesToSend = request.length() + 1;
+  	char* sendBuf = new char[bytesToSend];
+    strcpy(sendBuf, request.c_str());
     char* bufptr = sendBuf;
-    strcpy(sendBuf, name.c_str());
     while ((bytesSent = send(sockfd, bufptr, bytesToSend, 0)) > 0){
 
 		bytesToSend = bytesToSend - bytesSent;
@@ -111,7 +107,9 @@ int main(int argc, char *argv[])
 	}
 	delete[] sendBuf;
 
-	// sent username to server
+	exit(1)/;
+
+	// sent request to server
 
 	int bytesRecieved = -2;
 	int bufSpace = MAXDATASIZE-1;

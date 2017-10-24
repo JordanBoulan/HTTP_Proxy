@@ -145,12 +145,15 @@ int main(int argc, char* argv[])
 				}
 				// storing it in a string handles memory so we dont have to worry about buffer overflow.
 				// we can now reuse/overwrite on the same buffer
-				
-				if (bufptr[bytesRecieved-1] == '\0') //look for null character indicating the end of the cstring. it will be the last thing in the buffer. 
-					break; // we have recieved the whole username (application protocal).
+			
+				if (user.at(user.length()-1) == '\0') 
+					break; 
 
 			}
-			// user now stores username
+
+			printf("Request: %s\n", user.c_str());
+			exit(1);
+
 			dup2(new_fd, 1);
 			dup2 (new_fd, 2);
             close(new_fd);
