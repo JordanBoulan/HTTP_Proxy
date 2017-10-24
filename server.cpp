@@ -1,4 +1,4 @@
-/*
+﻿/*
 Author:Jordan Boulanger & Morgan Weaver
 Computer Networks - CPSC 5510
 Homework 1 - TCP "Finger" Server
@@ -184,12 +184,21 @@ int main(int argc, char* argv[])
            std::string client_HTTP_version = rqst_arr[2];
            //If more than 3 args, SEND ERR MSG TO CLIENT
            std::string client_port = "80";
+      
+           //TEST CODE: FAKE sender response
+      		std::string test_response = "HTTP/1.0 200 OK \nDate: Fri, 
+            													31 Dec 1999 23:59:59 GMT\nContent-Type: 
+      																text/html\nContent-Length: 1354";
+      		std::string searchterm = "HTTP/1.0";
+      	  std::cout << "\n response: " << sender_response;
+      		std::size_t found = test_response.find(searchterm);
+  				if (found!=std::string::npos)
+    				std::cout << "\nerror code is:  " << test_response.substr(found+8,3) << '\n';
+					//Now just forward the response to the client
            
-
-            // user now stores username
 //			dup2(new_fd, 1);
 //			dup2 (new_fd, 2);
-//          close(new_fd);
+//      close(new_fd);
 //			execl("/bin/finger", "finger", client_request.c_str(), NULL);
 			
 		}
@@ -198,4 +207,3 @@ int main(int argc, char* argv[])
 
 	return 0;
 }
-
