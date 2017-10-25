@@ -1,5 +1,5 @@
-/*
-Author:Jordan Boulanger
+﻿/*
+Author:Jordan Boulanger & Morgan Weaver
 Computer Networks - CPSC 5510
 Homework 1 - TCP "Finger" Server
 */
@@ -13,6 +13,7 @@ http://beej.us/guide/bgnet/output/html/multipage/clientserver.html
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
@@ -24,11 +25,28 @@ http://beej.us/guide/bgnet/output/html/multipage/clientserver.html
 #include <sys/wait.h>
 #include <signal.h>
 #include <iostream>
+#include <vector>
 
 
 #define BACKLOG 10	 // how many pending connections queue will hold
 #define MAXDATASIZE 100 // max number of bytes we can get at once 
 
+std::vector<std::string> split(const char *str, char c = ' ')
+{
+    std::vector<std::string> result;
+
+    do
+    {
+        const char *begin = str;
+
+        while(*str != c && *str)
+            str++;
+
+        result.push_back(std::string(begin, str));
+    } while (0 != *str++);
+
+    return result;
+}
 
 void sigchld_handler(int s)
 {
@@ -54,7 +72,7 @@ void *get_in_addr(struct sockaddr *sa)
 int main(int argc, char* argv[])
 {
 	if (argc != 2){
-		printf("Argument error! Usage: server portNumber\n");
+		printf("Bad args. Usage: <portNumber>\n");
 		exit(1);
 	}
 	int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
@@ -65,7 +83,8 @@ int main(int argc, char* argv[])
 	int yes=1;
 	int rv;
 	char recieveBuffer[MAXDATASIZE];
-	std::string user = "";
+	std::string client_request = "";
+    std::vector <std::string> client_args;
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
@@ -141,23 +160,46 @@ int main(int argc, char* argv[])
 			while((bytesRecieved = recv(new_fd, bufptr, bufSpace, 0)) > 0){
 				
 				for (int i = 0; i < bytesRecieved; i++){
-					user += bufptr[i]; 
+					client_request += bufptr[i];
 				}
 				// storing it in a string handles memory so we dont have to worry about buffer overflow.
 				// we can now reuse/overwrite on the same buffer
-			
-				if (user.at(user.length()-1) == '\0') 
-					break; 
-
+				
+				if (bufptr[bytesRecieved-1] == '\0') //look for null character indicating the end of the cstring. it will be the last thing in the buffer. 
+					break; // we have recieved the whole username (application protocal).
+                std::cout << "RECEIVED:" << client_request << "\n";
 			}
 
-			printf("Request: %s\n", user.c_str());
-			exit(1);
 
-			dup2(new_fd, 1);
-			dup2 (new_fd, 2);
-            close(new_fd);
-			execl("/bin/finger", "finger", user.c_str(), NULL);
+            int sz = client_request.size();
+            char rqst_arr[sizeof(client_request)];
+            for (int a=0;a<=sz;a++)
+            {
+                rqst_arr[a]=client_request[a];
+            }
+           client_args = split(rqst_arr, ' '); //now we have a vector of user args.  Should be 3.
+
+           std::string client_rqst_type = rqst_arr[0];
+           std::string client_host = rqst_arr[1];
+           std::string client_HTTP_version = rqst_arr[2];
+           //If more than 3 args, SEND ERR MSG TO CLIENT
+           std::string client_port = "80";
+      
+           //TEST CODE: FAKE sender response
+      		std::string test_response = "HTTP/1.0 200 OK \nDate: Fri, 
+            													31 Dec 1999 23:59:59 GMT\nContent-Type: 
+      																text/html\nContent-Length: 1354";
+      		std::string searchterm = "HTTP/1.0";
+      	  std::cout << "\n response: " << sender_response;
+      		std::size_t found = test_response.find(searchterm);
+  				if (found!=std::string::npos)
+    				std::cout << "\nerror code is:  " << test_response.substr(found+8,3) << '\n';
+					//Now just forward the response to the client
+           
+//			dup2(new_fd, 1);
+//			dup2 (new_fd, 2);
+//      close(new_fd);
+//			execl("/bin/finger", "finger", client_request.c_str(), NULL);
 			
 		}
 		close(new_fd);  // parent doesn't need this
@@ -165,4 +207,3 @@ int main(int argc, char* argv[])
 
 	return 0;
 }
-
