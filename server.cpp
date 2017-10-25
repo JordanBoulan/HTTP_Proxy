@@ -182,15 +182,17 @@ int main(int argc, char* argv[])
            std::string client_rqst_type = rqst_arr[0];
            std::string client_host = rqst_arr[1];
            std::string client_HTTP_version = rqst_arr[2];
-           //If more than 3 args, SEND ERR MSG TO CLIENT
+           //If more than 3 args, SEND ERR MSG TO CLIENT; if POST or anything but GET, send ERR
            std::string client_port = "80";
+
+           //INSERT client-style socket setup, request and receipt of response
       
            //TEST CODE: FAKE sender response
       		std::string test_response = "HTTP/1.0 200 OK \nDate: Fri, 
-            													31 Dec 1999 23:59:59 GMT\nContent-Type: 
-      																text/html\nContent-Length: 1354";
+            							31 Dec 1999 23:59:59 GMT\nContent-Type: 
+      									text/html\nContent-Length: 1354";
       		std::string searchterm = "HTTP/1.0";
-      	  std::cout << "\n response: " << sender_response;
+      	    std::cout << "\n response: " << sender_response;
       		std::size_t found = test_response.find(searchterm);
   				if (found!=std::string::npos)
     				std::cout << "\nerror code is:  " << test_response.substr(found+8,3) << '\n';
