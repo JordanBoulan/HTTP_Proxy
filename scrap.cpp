@@ -13,12 +13,49 @@
 #include <vector>
 using namespace std;
 
+
+int first_loved(char* stringee, char unloved) {
+	int index = 0;
+	char next;
+
+	// finding first location without unloved char
+	while(stringee[index] == unloved) {
+		index += 1;
+	}
+	return index;
+}
+
+int last_loved(char* stringee, char unloved) {
+	int index = 0;
+	char next = stringee[index];
+
+	// finding length
+	while(next != '\n') {
+		printf("%c\n", &next);
+		index += 1;
+		next = stringee[index];
+	}
+	printf("%d\n", index);
+
+	while(next == unloved){
+		index -= 1;
+		next = stringee[index];
+	}
+	printf("%d\n", index);
+
+	return index;
+}
+
 int main(int argc, char *argv[])
 {
 	// variable delcaration
-	char input_str[545];
+	int str_length = 545;
+	char input_str[str_length];
 	int size = 3;
 	int index = 3;
+	char BLANKSPACE = ' ';
+	char ENDLINE = '\n';
+	int start, end = -1;
 	vector<char*> lines(size);
 
 	// user request prompt
@@ -26,6 +63,12 @@ int main(int argc, char *argv[])
     
     // inputs request
     fgets(input_str, 545, stdin);
+
+	// trimming leading and trailing spaces
+	// start = first_loved(input_str, BLANKSPACE);
+	// end = last_loved(input_str, BLANKSPACE);
+	// printf("START:%c\n", input_str[start]);
+	// printf("END  :%c\n", input_str[end]);
 
     // parsing first line of input request
 	char* request = strtok(input_str, " ");
@@ -50,10 +93,18 @@ int main(int argc, char *argv[])
 		index += 1;
 	}
 
-	// DEBUG - print out of vector
+	// reconstruct lines into a single string
+	string full_string;
+	for(int i = 0; i < index; i++){
+		full_string = full_string + lines[i] + BLANKSPACE;
+	}
+
+	// DEBUG - print outs
 	for (int i = 0; i < lines.size(); i++){
 		printf("%d%s%s\n", i, " : ", lines[i]);
 	}
+
+	printf("full_string : %s\n", full_string.c_str()); 
 
     return 0;
 }	

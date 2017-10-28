@@ -16,3 +16,8 @@ server:
 scrap:
 	g++ scrap.cpp -o scrap
 	./scrap
+
+prune:
+	rm -rf scrap
+	rm -rf client
+	rm -rf server
