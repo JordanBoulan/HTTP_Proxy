@@ -1,4 +1,4 @@
-/*
+﻿/*
 Author:Jordan Boulanger
 Computer Networks - CPSC 5510
 Homework 1 - TCP "Finger" Server
@@ -378,4 +378,3 @@ int main(int argc, char* argv[])
 
 	return 0;
 }
-
