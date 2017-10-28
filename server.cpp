@@ -16,7 +16,6 @@ http://beej.us/guide/bgnet/output/html/multipage/clientserver.html
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -177,30 +176,22 @@ int main(int argc, char* argv[])
             {
                 rqst_arr[a]=client_request[a];
             }
-           client_args = split(rqst_arr, ' '); //now we have a vector of user args.  Should be 3.
+            client_args = split(rqst_arr, ' '); //now we have a vector of user args.  Should be 3.
 
-           std::string client_rqst_type = rqst_arr[0];
-           std::string client_host = rqst_arr[1];
-           std::string client_HTTP_version = rqst_arr[2];
-           //If more than 3 args, SEND ERR MSG TO CLIENT
-           std::string client_port = "80";
+            std::string client_rqst_type = rqst_arr[0];
+            std::string client_host = rqst_arr[1];
+            std::string client_HTTP_version = rqst_arr[2];
+            //If more than 3 args, SEND ERR MSG TO CLIENT
+            std::string client_port = "80";
       
-           //TEST CODE: FAKE sender response
-      		std::string test_response = "HTTP/1.0 200 OK \nDate: Fri, 
-            													31 Dec 1999 23:59:59 GMT\nContent-Type: 
-      																text/html\nContent-Length: 1354";
-      		std::string searchterm = "HTTP/1.0";
-      	  std::cout << "\n response: " << sender_response;
+            //TEST CODE: FAKE sender response
+      		std::string test_response = "HTTP/1.0 200 OK \nDate: Fri, 31 Dec 1999 23:59:59 GMT\nContent-Type: text/html\nContent-Length: 1354";
+      		std::char* searchterm = "HTTP/1.0";
+      	  	std::cout << "\n response: " << sender_response;
       		std::size_t found = test_response.find(searchterm);
   				if (found!=std::string::npos)
     				std::cout << "\nerror code is:  " << test_response.substr(found+8,3) << '\n';
 					//Now just forward the response to the client
-           
-//			dup2(new_fd, 1);
-//			dup2 (new_fd, 2);
-//      close(new_fd);
-//			execl("/bin/finger", "finger", client_request.c_str(), NULL);
-			
 		}
 		close(new_fd);  // parent doesn't need this
 	}
