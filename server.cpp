@@ -24,6 +24,7 @@ http://beej.us/guide/bgnet/output/html/multipage/clientserver.html
 #include <sys/wait.h>
 #include <signal.h>
 #include <iostream>
+#include <vector>
 
 
 #define BACKLOG 10	 // how many pending connections queue will hold
@@ -49,6 +50,64 @@ void *get_in_addr(struct sockaddr *sa)
 	}
 
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
+int* getNewSocket(char* host, char* port){
+
+	int sockfd; // listen on sock_fd, new connection on new_fd
+	struct addrinfo hints, *servinfo, *p;
+	struct sockaddr_storage their_addr; // connector's address information
+	socklen_t sin_size;
+	struct sigaction sa;
+	int yes=1;
+	int rv;
+	char recieveBuffer[MAXDATASIZE];
+	std::string user = "";
+
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE; // use my IP
+
+	if ((rv = getaddrinfo(host,port, &hints, &servinfo)) != 0) {
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+		return NULL;
+	}
+
+	// loop through all the results and bind to the first we can
+	for(p = servinfo; p != NULL; p = p->ai_next) {
+		if ((sockfd = socket(p->ai_family, p->ai_socktype,
+				p->ai_protocol)) == -1) {
+			perror("server: socket");
+			continue;
+		}
+
+		if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
+				sizeof(int)) == -1) {
+			perror("setsockopt");
+			exit(1);
+		}
+
+		if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+			close(sockfd);
+			perror("server: bind");
+			continue;
+		}
+
+		break;
+
+		int* request_fd = &sockfd;
+		return request_fd;
+	}
+
+	freeaddrinfo(servinfo); // all done with this structure
+
+	if (p == NULL)  {
+		fprintf(stderr, "server: failed to bind\n");
+		exit(1);
+	}
+
+
 }
 
 int main(int argc, char* argv[])
@@ -146,12 +205,49 @@ int main(int argc, char* argv[])
 				// storing it in a string handles memory so we dont have to worry about buffer overflow.
 				// we can now reuse/overwrite on the same buffer
 			
-				if (user.at(user.length()-1) == '\0') 
+				if (user.at(user.length()-1) == '\n') 
 					break; 
 
 			}
 
 			printf("Request: %s\n", user.c_str());
+
+			int size = 3;
+			int index = 3;
+			std::vector<char*> lines(size);
+			char* request_in = new char[user.length()+1];
+			strcpy(request_in, user.c_str());
+
+			
+		    // parsing first line of input request
+			char* request = strtok(request_in, " ");
+			char* url = strtok(NULL, " ");
+			char* http_type = strtok(NULL, " ");
+
+			// adding parse to vector
+			lines[0] = request;
+			lines[1] = url;
+			lines[2] = http_type;
+
+			// recieves additional lines
+			char* line = strtok(NULL, " ");
+			while(line){
+				// resize function
+				if(index == lines.size()){
+					size = size * 2;
+					lines.resize(size);	
+				}
+				lines[index] = line;
+				line = strtok(NULL, " ");
+				index += 1;
+			}
+
+			// DEBUG - print out of vector
+			for (int i = 0; i < lines.size(); i++){
+				printf("%d%s%s\n", i, " : ", lines[i]);
+			}
+
+			delete[] request;
 			exit(1);
 
 			dup2(new_fd, 1);
