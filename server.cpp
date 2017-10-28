@@ -1,5 +1,5 @@
-/*
-Author:Jordan Boulanger
+﻿/*
+Author:Jordan Boulanger & Morgan Weaver
 Computer Networks - CPSC 5510
 Homework 1 - TCP "Finger" Server
 */
@@ -13,9 +13,9 @@ http://beej.us/guide/bgnet/output/html/multipage/clientserver.html
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -30,6 +30,22 @@ http://beej.us/guide/bgnet/output/html/multipage/clientserver.html
 #define BACKLOG 10	 // how many pending connections queue will hold
 #define MAXDATASIZE 100 // max number of bytes we can get at once 
 
+std::vector<std::string> split(const char *str, char c = ' ')
+{
+    std::vector<std::string> result;
+
+    do
+    {
+        const char *begin = str;
+
+        while(*str != c && *str)
+            str++;
+
+        result.push_back(std::string(begin, str));
+    } while (0 != *str++);
+
+    return result;
+}
 
 void sigchld_handler(int s)
 {
@@ -52,68 +68,10 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-int* getNewSocket(char* host, char* port){
-
-	int sockfd; // listen on sock_fd, new connection on new_fd
-	struct addrinfo hints, *servinfo, *p;
-	struct sockaddr_storage their_addr; // connector's address information
-	socklen_t sin_size;
-	struct sigaction sa;
-	int yes=1;
-	int rv;
-	char recieveBuffer[MAXDATASIZE];
-	std::string user = "";
-
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE; // use my IP
-
-	if ((rv = getaddrinfo(host,port, &hints, &servinfo)) != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-		return NULL;
-	}
-
-	// loop through all the results and bind to the first we can
-	for(p = servinfo; p != NULL; p = p->ai_next) {
-		if ((sockfd = socket(p->ai_family, p->ai_socktype,
-				p->ai_protocol)) == -1) {
-			perror("server: socket");
-			continue;
-		}
-
-		if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
-				sizeof(int)) == -1) {
-			perror("setsockopt");
-			exit(1);
-		}
-
-		if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-			close(sockfd);
-			perror("server: bind");
-			continue;
-		}
-
-		break;
-
-		int* request_fd = &sockfd;
-		return request_fd;
-	}
-
-	freeaddrinfo(servinfo); // all done with this structure
-
-	if (p == NULL)  {
-		fprintf(stderr, "server: failed to bind\n");
-		exit(1);
-	}
-
-
-}
-
 int main(int argc, char* argv[])
 {
 	if (argc != 2){
-		printf("Argument error! Usage: server portNumber\n");
+		printf("Bad args. Usage: <portNumber>\n");
 		exit(1);
 	}
 	int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
@@ -124,7 +82,8 @@ int main(int argc, char* argv[])
 	int yes=1;
 	int rv;
 	char recieveBuffer[MAXDATASIZE];
-	std::string user = "";
+	std::string client_request = "";
+    std::vector <std::string> client_args;
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
@@ -200,65 +159,42 @@ int main(int argc, char* argv[])
 			while((bytesRecieved = recv(new_fd, bufptr, bufSpace, 0)) > 0){
 				
 				for (int i = 0; i < bytesRecieved; i++){
-					user += bufptr[i]; 
+					client_request += bufptr[i];
 				}
 				// storing it in a string handles memory so we dont have to worry about buffer overflow.
 				// we can now reuse/overwrite on the same buffer
-			
-				if (user.at(user.length()-1) == '\n') 
-					break; 
-
+				
+				if (bufptr[bytesRecieved-1] == '\0') //look for null character indicating the end of the cstring. it will be the last thing in the buffer. 
+					break; // we have recieved the whole username (application protocal).
+                std::cout << "RECEIVED:" << client_request << "\n";
 			}
 
-			printf("Request: %s\n", user.c_str());
 
-			int size = 3;
-			int index = 3;
-			std::vector<char*> lines(size);
-			char* request_in = new char[user.length()+1];
-			strcpy(request_in, user.c_str());
+            int sz = client_request.size();
+            char rqst_arr[sizeof(client_request)];
+            for (int a=0;a<=sz;a++)
+            {
+                rqst_arr[a]=client_request[a];
+            }
+            client_args = split(rqst_arr, ' '); //now we have a vector of user args.  Should be 3.
 
-			
-		    // parsing first line of input request
-			char* request = strtok(request_in, " ");
-			char* url = strtok(NULL, " ");
-			char* http_type = strtok(NULL, " ");
-
-			// adding parse to vector
-			lines[0] = request;
-			lines[1] = url;
-			lines[2] = http_type;
-
-			// recieves additional lines
-			char* line = strtok(NULL, " ");
-			while(line){
-				// resize function
-				if(index == lines.size()){
-					size = size * 2;
-					lines.resize(size);	
-				}
-				lines[index] = line;
-				line = strtok(NULL, " ");
-				index += 1;
-			}
-
-			// DEBUG - print out of vector
-			for (int i = 0; i < lines.size(); i++){
-				printf("%d%s%s\n", i, " : ", lines[i]);
-			}
-
-			delete[] request;
-			exit(1);
-
-			dup2(new_fd, 1);
-			dup2 (new_fd, 2);
-            close(new_fd);
-			execl("/bin/finger", "finger", user.c_str(), NULL);
-			
+            std::string client_rqst_type = rqst_arr[0];
+            std::string client_host = rqst_arr[1];
+            std::string client_HTTP_version = rqst_arr[2];
+            //If more than 3 args, SEND ERR MSG TO CLIENT
+            std::string client_port = "80";
+      
+            //TEST CODE: FAKE sender response
+      		std::string test_response = "HTTP/1.0 200 OK \nDate: Fri, 31 Dec 1999 23:59:59 GMT\nContent-Type: text/html\nContent-Length: 1354";
+      		std::char* searchterm = "HTTP/1.0";
+      	  	std::cout << "\n response: " << sender_response;
+      		std::size_t found = test_response.find(searchterm);
+  				if (found!=std::string::npos)
+    				std::cout << "\nerror code is:  " << test_response.substr(found+8,3) << '\n';
+					//Now just forward the response to the client
 		}
 		close(new_fd);  // parent doesn't need this
 	}
 
 	return 0;
 }
-
