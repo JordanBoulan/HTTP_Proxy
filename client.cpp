@@ -90,6 +90,23 @@ int main(int argc, char *argv[])
 	printf("client: connecting to %s\n", s);*/
 
 	freeaddrinfo(servinfo); // all done with this structure
+    
+    // elle on 10/24 - user string request w/ debug print statements
+    printf ("Enter request: ");
+    char  str[545];
+    fgets(str, 545, stdin);
+
+    char* request = strtok(str, " ");
+    char* url = strtok(NULL, " ");
+    char* http_type = strtok(NULL, " ");
+    
+    printf(request);
+    printf("\n");
+    printf(url);
+    printf("\n");
+    printf(http_type);
+    // elle on 10/24 - end
+	
     int bytesSent = -2;
   	std::string request;
   	printf("Please enter your request as an absolute URI: ");
