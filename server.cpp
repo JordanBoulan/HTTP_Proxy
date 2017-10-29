@@ -1,4 +1,4 @@
-﻿/*
+/*
 Author:Jordan Boulanger
 Computer Networks - CPSC 5510
 Homework 1 - TCP "Finger" Server
@@ -202,7 +202,7 @@ int main(int argc, char* argv[])
 				// storing it in a string handles memory so we dont have to worry about buffer overflow.
 				// we can now reuse/overwrite on the same buffer
 			
-				if (user.at(user.length()-1) == '\n' && user.at(user.length()-2) == '\r') 
+				if (user.at(user.length()-1) == '\n' && user.at(user.length()-2) == '\r' && user.at(user.length()-3) == '\n' && user.at(user.length()-4) == '\r') 
 					break; 
 
 			}
@@ -263,9 +263,9 @@ int main(int argc, char* argv[])
 				
 				request_formatted += "GET ";
 				request_formatted += path;
-				request_formatted += " HTTP/1.0 \r\n";
-				request_formatted += "Hostname:" + host + "\r\n";
-				request_formatted += "Connection:close \r\n";
+				request_formatted += " HTTP/1.0\r\n";
+				request_formatted += "Host:" + host + "\r\n";
+				request_formatted += "Connection:close \r\n\r\n";
 
 				for (int i = 3; i < index; i++){
 					request_formatted += lines[i];
@@ -378,3 +378,4 @@ int main(int argc, char* argv[])
 
 	return 0;
 }
+
