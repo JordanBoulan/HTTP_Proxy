@@ -1,4 +1,4 @@
-﻿/*
+/*
 Author:Jordan Boulanger
 Computer Networks - CPSC 5510
 Homework 1 - TCP "Finger" Server
@@ -209,12 +209,23 @@ int main(int argc, char* argv[])
 
 			printf("Request: %s\n", user.c_str());
 
+			// Trimmer removes leading spaces
+			int first_char = 0;
+			char BLANK = ' ';
+			char* trimmed_raw = new char[user.length() - first_char];
+			while(user[first_char] == BLANK){
+				printf("blank\n");
+				first_char += 1;
+			}
+			for(int i = 0; i < user.length() - first_char; i++){
+				trimmed_raw[i] = user[first_char + i];
+			}			
 			int size = 3;
 			int index = 3;
 			std::vector<char*> lines(size);
-			char* request_in = new char[user.length()+1];
-			strcpy(request_in, user.c_str());
-
+			char* request_in = new char[user.length() - first_char];
+			strcpy(request_in, trimmed_raw);
+			printf(request_in);
 			
 		    // parsing first line of input request
 			char* request = strtok(request_in, " ");
