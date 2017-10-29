@@ -231,7 +231,7 @@ int main(int argc, char* argv[])
 			while(line){
 				// resize function
 				if((unsigned) index == lines.size()){
-					size = size * 2;
+					size = size + 1;
 					lines.resize(size);	
 				}
 				lines[index] = line;
@@ -240,45 +240,68 @@ int main(int argc, char* argv[])
 			}
 
 			// DEBUG - print out of vector
-			for (int i = 0; (unsigned) i < lines.size(); i++){
-				printf("%d%s%s\n", i, " : ", lines[i]);
+			//for (int i = 0; (unsigned) i < lines.size(); i++){
+			//	printf("%d%s%s\n", i, " : ", lines[i]);
+			//}
+
+			std::string request_formatted = "";
+			std::string unformatted = lines[1];
+			
+			int start = unformatted.find( "//", 0);
+			int relitive_start = unformatted.find( "/", start+2);
+			std::string host;
+			std::string path;
+			if (relitive_start != -1){
+				path = unformatted.substr(relitive_start, std::string::npos);
+				host = unformatted.substr(start+2, relitive_start-(start+2));
 			}
-
-
-				std::string request_formatted = "";
-				std::string unformatted = lines[1];
-				
-				int start = unformatted.find( "//", 0);
-				int relitive_start = unformatted.find( "/", start+2);
-				std::string host;
-				std::string path;
-				if (relitive_start != -1){
-					path = unformatted.substr(relitive_start, std::string::npos);
-					host = unformatted.substr(start+2, relitive_start-(start+2));
-				}
-				else{
-					host = unformatted.substr(start+2, std::string::npos);
-					path = "/";
-				}
-				
-				request_formatted += "GET ";
-				request_formatted += path;
-				request_formatted += " HTTP/1.0 \r\n";
-				request_formatted += "Hostname:" + host + "\r\n";
-				request_formatted += "Connection:close \r\n";
-
-				for (int i = 3; i < index; i++){
-					request_formatted += lines[i];
-				}
-
-				printf("host: %s formatted: %s\n", host.c_str(), request_formatted.c_str() );
-
-
-			std::string serverResponse = "";
-			if (strcmp(lines[0], "GET") != 0){
-				serverResponse += "501 Error: Request type not supported";
+			else{
+				host = unformatted.substr(start+2, std::string::npos);
+				path = "/";
 			}
 			
+			request_formatted += "GET ";
+			request_formatted += path;
+			request_formatted += " HTTP/1.0 \r\n";
+			request_formatted += "Host:" + host + "\r\n";
+			request_formatted += "Connection:close \r\n";
+
+			std::string header, value;
+			int colon, colon2;
+			bool isFormated = true;
+
+			// add option lines to the formatted string
+			for (int i = 3; i < index; i++){
+				unformatted = lines[i];
+				colon = unformatted.find(":", 0);
+				colon2 = unformatted.find(":", colon + 1);
+				// check if no colon is present in line
+				if(colon == -1 && unformatted.length() > 2){
+					isFormated = false;
+					printf("if\n");
+				}
+				// check if there are multiple colons in a single line
+				else if(colon2 != -1 && unformatted.length() > 2){
+					isFormated = false;
+					printf("else if\n");
+				}
+				request_formatted += lines[i];
+				request_formatted += "\n";
+			}
+
+			printf("host: %s formatted: %s\n", host.c_str(), request_formatted.c_str() );
+
+			// error checks and server response
+			std::string serverResponse = "";
+			// request check
+			if (strcmp(lines[0], "GET") != 0){
+				serverResponse += "501 Error: Request type not supported\n";
+			}
+			// options formatting check
+			else if (!isFormated){
+				serverResponse += "500 Error: Option syntax error in request\n";
+			}
+			// proxy response piping
 			else{
 				int request_fd; // listen on sock_fd, new connection on new_fd
 				struct addrinfo hints1, *servinfo1, *p1;
