@@ -1,7 +1,7 @@
 /*
-Author:Jordan Boulanger
+Author:Jordan Boulanger, Ellery Baines, Morgan Weaver
 Computer Networks - CPSC 5510
-Homework 1 - TCP "Finger" Server
+Project 2 - http proxy part 1
 */
 
 /*
@@ -250,16 +250,46 @@ int main(int argc, char* argv[])
 				
 				int start = unformatted.find( "//", 0);
 				int relitive_start = unformatted.find( "/", start+2);
+				int port_specified = unformatted.find(":", start+2);
 				std::string host;
 				std::string path;
+				std::string port;
 				if (relitive_start != -1){
-					path = unformatted.substr(relitive_start, std::string::npos);
-					host = unformatted.substr(start+2, relitive_start-(start+2));
+
+					if (port_specified != -1){
+						port = unformatted.substr(port_specified + 1, relitive_start- (port_specified+1));
+						path = unformatted.substr(relitive_start, std::string::npos);
+						host = unformatted.substr(start+2, port_specified-(start+2));
+
+					}
+					
+					else{
+						port = "80";
+						path = unformatted.substr(relitive_start, std::string::npos);
+						host = unformatted.substr(start+2, relitive_start-(start+2));
+
+					}
+
 				}
 				else{
-					host = unformatted.substr(start+2, std::string::npos);
-					path = "/";
+					if (port_specified != -1){
+						port = unformatted.substr(port_specified + 1, relitive_start- (port_specified+1));
+						path = "/";
+						host = unformatted.substr(start+2, port_specified-(start+2));
+
+					}
+					
+					else{
+						port = "80";
+						path = "/";
+						host = unformatted.substr(start+2, std::string::npos);
+
+					}
+
+					
 				}
+
+				
 				
 				request_formatted += "GET ";
 				request_formatted += path;
@@ -272,6 +302,7 @@ int main(int argc, char* argv[])
 				}
 
 				printf("host: %s formatted: %s\n", host.c_str(), request_formatted.c_str() );
+				printf("port: %s\n", port.c_str());
 
 
 			std::string serverResponse = "";
@@ -291,7 +322,7 @@ int main(int argc, char* argv[])
 				hints.ai_flags = AI_PASSIVE; // use my IP
 
 				
-				if ((rv1 = getaddrinfo(host.c_str(), "80", &hints1, &servinfo1)) != 0) {
+				if ((rv1 = getaddrinfo(host.c_str(), port.c_str(), &hints1, &servinfo1)) != 0) {
 					fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv1));
 					return 1;
 				}
@@ -342,6 +373,7 @@ int main(int argc, char* argv[])
 				}
 				
 			
+				delete[] final_format;
 
 				bufptr = recieveBuffer;
 				bufSpace = MAXDATASIZE-1;
