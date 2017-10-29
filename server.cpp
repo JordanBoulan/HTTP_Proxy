@@ -214,7 +214,6 @@ int main(int argc, char* argv[])
 			char BLANK = ' ';
 			char* trimmed_raw = new char[user.length() - first_char];
 			while(user[first_char] == BLANK){
-				printf("blank\n");
 				first_char += 1;
 			}
 			for(int i = 0; i < user.length() - first_char; i++){
@@ -225,7 +224,6 @@ int main(int argc, char* argv[])
 			std::vector<char*> lines(size);
 			char* request_in = new char[user.length() - first_char];
 			strcpy(request_in, trimmed_raw);
-			printf(request_in);
 			
 		    // parsing first line of input request
 			char* request = strtok(request_in, " ");
@@ -289,12 +287,10 @@ int main(int argc, char* argv[])
 				// check if no colon is present in line
 				if(colon == -1 && unformatted.length() > 2){
 					isFormated = false;
-					printf("if\n");
 				}
 				// check if there are multiple colons in a single line
 				else if(colon2 != -1 && unformatted.length() > 2){
 					isFormated = false;
-					printf("else if\n");
 				}
 				request_formatted += lines[i];
 				request_formatted += "\n";
