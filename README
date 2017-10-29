@@ -1,18 +1,30 @@
-Jordan Boulanger
-Homework 1 - Finger client/server
-Class: 5510 Computer Networks
-Date: 10/05/2017
-Files: client.cpp, server.cpp, makefile, README
+Jordan Boulanger, Morgan Weaver, Ellery Baines
+Class: 5510, Computer Networks
+Project 2: Group Project - Implementing a Simple HTTP Web Proxy
+Date: 10/29/2017
+Files: client.cpp, server.cpp, makefile, README.txt
 
-Usage: run 'make' to create the two executables (client, server) in the current program.
-To use client program: ./client username@hostname.com:port
-To use server program: ./server port
+This program is comprised of 3 files; README.txt, proxy.cpp, and a makefile. 
+Usage: 
+Run 'make default' to create the a proxy executable.
 
-The server program must be run before the client program!
+Program process:
 
-Description:
-This is a simple client/server program using tcp. The server listens on the specified port. 
-The client program specifies a username. The server executes the linix "finger" program passing in the recieved username.
-The server the output of finger is sent back to the client via the tcp connection.
-The client/server is configured to handle 10 connections at once.
-There is basic format checking on the input arguments. However, input is assumed to be correct!
+1. The program creates a proxy server that listens for incoming TCP connections on a disgnated socket. 
+
+2. The server waits for incoming client connections. 
+
+3. The server will create a child process in order to handle new incoming connections.
+
+4. The proxy server will prompt the client for a HTTP GET request, with the format:
+	GET www.url.com/relative_path HTTP/1.0 [header1:values] [header2:values]...
+
+5. The proxy server parses the request.
+
+6. The proxy server uses a telnet connection to the requested host server to fufill the client's request. 
+
+7. Upon recieving reponse from the requested host server, the web proxy sends the response back to the client utilizing the TCP connection it previously stablished.
+
+8. Finally, the server closes the TCP.
+
+Additional notes: The server is able to accept multiple clients. The server also includes error checking methods, and a zombie process clean-up method. It is assumed that the client will use correct syntax when issueing requests to the server.
