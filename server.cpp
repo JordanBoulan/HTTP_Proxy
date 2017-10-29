@@ -222,7 +222,7 @@ int main(int argc, char* argv[])
 			int size = 3;
 			int index = 3;
 			std::vector<char*> lines(size);
-			char* request_in = new char[user.length() - first_char];
+			char* request_in = new char[user.length() - first_char - 1];
 			strcpy(request_in, trimmed_raw);
 			
 		    // parsing first line of input request
