@@ -11,7 +11,8 @@ client:
 	./client
 
 server:
-	./server
+	g++ server.cpp -o ./server
+	./server 10001
 
 scrap:
 	g++ scrap.cpp -o scrap
@@ -21,3 +22,4 @@ prune:
 	rm -rf scrap
 	rm -rf client
 	rm -rf server
+	fuser -k 10001/tcp
