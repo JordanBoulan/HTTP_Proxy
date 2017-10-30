@@ -1,4 +1,5 @@
 /*
+
 Author:Jordan Boulanger, Ellery Baines, Morgan Weaver
 Computer Networks - CPSC 5510
 Project 2 - http proxy part 1
@@ -52,65 +53,31 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-int* getNewSocket(const char* host, const char port[]){
 
-	int sockfd; // listen on sock_fd, new connection on new_fd
-	struct addrinfo hints, *servinfo, *p;
-	int yes=1;
-	int rv;
-	
-	std::string user = "";
-	printf("host: %s port: %s\n",host, port );
+void sendResponseToClient(std::string serverResponse, int new_fd){
 
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE; // use my IP
+	int bytesToSend2 = serverResponse.length() + 1;
+	int bytesSent2 = 0;
+	char* response_tosend = new char[bytesToSend2];
+	strcpy(response_tosend, serverResponse.c_str());
+		  	
+	char* bufptr2 = response_tosend;
+		 	
+	while ((bytesSent2 = send(new_fd, bufptr2, bytesToSend2, 0)) > 0){
 
-	
-	if ((rv = getaddrinfo(host, port, &hints, &servinfo)) != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-		return NULL;
+			bytesToSend2 = bytesToSend2 - bytesSent2;
+			bufptr2 += bytesSent2;
+				
 	}
-
-	// loop through all the results and connect to the first we can
-	for(p = servinfo; p != NULL; p = p->ai_next) {
-		if ((sockfd = socket(p->ai_family, p->ai_socktype,
-				p->ai_protocol)) == -1) {
-
-			continue;
-		}
-
-		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-			close(sockfd);
-			continue;
-		}
-
-		break;
-	}
-
-	if (p == NULL) {
-		fprintf(stderr, "client: failed to connect\n");
-		return NULL;
-	}
-
-	freeaddrinfo(servinfo); // all done with this structure
-
-	if (p == NULL)  {
-		fprintf(stderr, "server: failed to bind\n");
-		exit(1);
-	}
-
-	int* request_fd = &sockfd;
-	return request_fd;
-
-
+	delete[] response_tosend;
+			
 }
+
 
 int main(int argc, char* argv[])
 {
 	if (argc != 2){
-		printf("Argument error! Usage: server portNumber\n");
+		printf("Argument error! Usage: proxy portNumber\n");
 		exit(1);
 	}
 	int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
@@ -121,7 +88,7 @@ int main(int argc, char* argv[])
 	int yes=1;
 	int rv;
 	char recieveBuffer[MAXDATASIZE];
-	std::string user = "";
+	std::string request_input = "";
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
@@ -183,7 +150,7 @@ int main(int argc, char* argv[])
 		new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
 		if (new_fd == -1)
 		{
-			//perror("accept error"); // this is where i lost points for not having this check, im dumb
+			//perror("accept error");
 			exit(1);
 		}
 	
@@ -197,29 +164,45 @@ int main(int argc, char* argv[])
 			while((bytesRecieved = recv(new_fd, bufptr, bufSpace, 0)) > 0){
 				
 				for (int i = 0; i < bytesRecieved; i++){
-					user += bufptr[i]; 
+					request_input += bufptr[i]; 
 				}
 				// storing it in a string handles memory so we dont have to worry about buffer overflow.
 				// we can now reuse/overwrite on the same buffer
 			
-				if (user.at(user.length()-1) == '\n' && user.at(user.length()-2) == '\r' && user.at(user.length()-3) == '\n' && user.at(user.length()-4) == '\r') 
+				if (request_input.length() > 3 && request_input.at(request_input.length()-1) == '\n' && request_input.at(request_input.length()-2) == '\r' && request_input.at(request_input.length()-3) == '\n' && request_input.at(request_input.length()-4) == '\r') 
 					break; 
 
 			}
 
-			printf("Request: %s\n", user.c_str());
 
+			
+			char* request_in = new char[request_input.length()+1];
+			strcpy(request_in, request_input.c_str());
 			int size = 3;
 			int index = 3;
 			std::vector<char*> lines(size);
-			char* request_in = new char[user.length()+1];
-			strcpy(request_in, user.c_str());
-
+			std::string serverResponse = "";
 			
+		    
 		    // parsing first line of input request
 			char* request = strtok(request_in, " ");
+			
+			if (request == NULL){
+				    serverResponse += "500 error: Internal Server error\n";
+					sendResponseToClient(serverResponse, new_fd);
+					continue;
+
+			}
+
 			char* url = strtok(NULL, " ");
-			char* http_type = strtok(NULL, " ");
+
+			if (url == NULL){
+				    serverResponse += "500 error: Internal Server error\n";
+					sendResponseToClient(serverResponse, new_fd);
+					continue;
+			}
+
+			char* http_type = strtok(NULL, "\n");
 
 			// adding parse to vector
 			lines[0] = request;
@@ -227,93 +210,125 @@ int main(int argc, char* argv[])
 			lines[2] = http_type;
 
 			// recieves additional lines
-			char* line = strtok(NULL, " ");
+			char* line = strtok(NULL, "\n");
 			while(line){
 				// resize function
 				if((unsigned) index == lines.size()){
-					size = size * 2;
+					size = size + 1;
 					lines.resize(size);	
 				}
 				lines[index] = line;
-				line = strtok(NULL, " ");
+				line = strtok(NULL, "\n");
 				index += 1;
 			}
 
+			lines.pop_back(); // remove blank entry
+			index = index - 1;
+
 			// DEBUG - print out of vector
-			for (int i = 0; (unsigned) i < lines.size(); i++){
-				printf("%d%s%s\n", i, " : ", lines[i]);
-			}
+			//for (int i = 0; (unsigned) i < lines.size(); i++){
+			//	printf("%d%s%s\n", i, " : ", lines[i]);
+			//}
 
-
-				std::string request_formatted = "";
-				std::string unformatted = lines[1];
-				
-				int start = unformatted.find( "//", 0);
-				int relitive_start = unformatted.find( "/", start+2);
-				int port_specified = unformatted.find(":", start+2);
-				std::string host;
-				std::string path;
-				std::string port;
-				if (relitive_start != -1){
-
-					if (port_specified != -1){
-						port = unformatted.substr(port_specified + 1, relitive_start- (port_specified+1));
-						path = unformatted.substr(relitive_start, std::string::npos);
-						host = unformatted.substr(start+2, port_specified-(start+2));
-
-					}
-					
-					else{
-						port = "80";
-						path = unformatted.substr(relitive_start, std::string::npos);
-						host = unformatted.substr(start+2, relitive_start-(start+2));
-
-					}
-
-				}
-				else{
-					if (port_specified != -1){
-						port = unformatted.substr(port_specified + 1, relitive_start- (port_specified+1));
-						path = "/";
-						host = unformatted.substr(start+2, port_specified-(start+2));
-
-					}
-					
-					else{
-						port = "80";
-						path = "/";
-						host = unformatted.substr(start+2, std::string::npos);
-
-					}
-
-					
-				}
-
-				
-				
-				request_formatted += "GET ";
-				request_formatted += path;
-				request_formatted += " HTTP/1.0\r\n";
-				request_formatted += "Host:" + host + "\r\n";
-				request_formatted += "Connection:close \r\n\r\n";
-
-				for (int i = 3; i < index; i++){
-					request_formatted += lines[i];
-				}
-
-				printf("host: %s formatted: %s\n", host.c_str(), request_formatted.c_str() );
-				printf("port: %s\n", port.c_str());
-
-
-			std::string serverResponse = "";
-			if (strcmp(lines[0], "GET") != 0){
-				serverResponse += "501 Error: Request type not supported";
-			}
+			bool isFormated = true;
+			std::string request_formatted = "";
+			std::string unformatted = lines[1];
 			
+			int start = unformatted.find( "//", 0);
+
+			if ((unsigned)start == std::string::npos)
+				isFormated = false;
+
+			int relitive_start = unformatted.find( "/", start+2);
+			int port_specified = unformatted.find(":", start+2);
+			std::string host;
+			std::string path;
+			std::string port;
+			if (relitive_start != -1){
+
+				if (port_specified != -1){
+					port = unformatted.substr(port_specified + 1, relitive_start- (port_specified+1));
+					path = unformatted.substr(relitive_start, std::string::npos);
+					host = unformatted.substr(start+2, port_specified-(start+2));
+
+				}
+				
+				else{
+					port = "80";
+					path = unformatted.substr(relitive_start, std::string::npos);
+					host = unformatted.substr(start+2, relitive_start-(start+2));
+
+				}
+
+			}
 			else{
-				int request_fd; // listen on sock_fd, new connection on new_fd
+				if (port_specified != -1){
+					port = unformatted.substr(port_specified + 1, relitive_start- (port_specified+1));
+					path = "/";
+					host = unformatted.substr(start+2, port_specified-(start+2));
+
+				}
+				
+				else{
+					port = "80";
+					path = "/";
+					host = unformatted.substr(start+2, std::string::npos);
+
+				}
+
+				
+			}
+
+			
+			
+			request_formatted += "GET ";
+			request_formatted += path;
+			request_formatted += " HTTP/1.0\r\n";
+			request_formatted += "Host:" + host + "\r\n";
+			request_formatted += "Connection:close \r\n";
+
+
+	
+			int colon, colon2;
+			
+
+			// add option lines to the formatted string
+			for (int i = 3; i < index; i++){
+				unformatted = lines[i];
+				colon = unformatted.find(":", 0);
+				colon2 = unformatted.find(":", colon + 1);
+				// check if no colon is present in line
+				if(colon == -1 ){
+					isFormated = false;
+				}
+				// check if there are multiple colons in a single line
+				else if(colon2 != -1 ){
+					isFormated = false;
+
+				}
+				std::string header = lines[i];
+				if (header.find("connection", 0) == std::string::npos && header.find("Connection", 0) == std::string::npos){ //we always want connection:close regardless of user input
+					request_formatted += lines[i];
+					request_formatted += "\r\n";
+					
+				}
+			}
+			request_formatted += "\r\n";
+
+			// error checks and server response
+			
+			// request check
+			if (strcmp(lines[0], "GET") != 0){
+				serverResponse += "501 Error: Request type not supported\n";
+			}
+			// options formatting check
+			else if (!isFormated){
+				serverResponse += "500 Error: Internal Server error\n";
+			}
+			// proxy response piping
+			else{
+				int request_fd;
 				struct addrinfo hints1, *servinfo1, *p1;
-				int yes1=1;
 				int rv1;
 
 				memset(&hints1, 0, sizeof hints1);
@@ -323,8 +338,9 @@ int main(int argc, char* argv[])
 
 				
 				if ((rv1 = getaddrinfo(host.c_str(), port.c_str(), &hints1, &servinfo1)) != 0) {
-					fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv1));
-					return 1;
+					serverResponse += "500 error: Internal Server error\n";
+					sendResponseToClient(serverResponse, new_fd);
+					continue;
 				}
 
 				// loop through all the results and connect to the first we can
@@ -344,16 +360,12 @@ int main(int argc, char* argv[])
 				}
 
 				if (p1 == NULL) {
-					fprintf(stderr, "client: failed to connect\n");
-					return 1;
+					serverResponse += "500 error: Internal Server error\n";
+					sendResponseToClient(serverResponse, new_fd);
+					continue; // will modularize in next version
 				}
 
 				freeaddrinfo(servinfo1); // all done with this structure
-
-				if (p1 == NULL)  {
-					fprintf(stderr, "server: failed to bind\n");
-					exit(1);
-				}
 
 
 			
@@ -363,7 +375,7 @@ int main(int argc, char* argv[])
 				int bytesSent1 = 0;
 			  	
 			    char* bufptr1 = final_format;
-			    printf("%s\n", final_format );
+			   
 			 	
 			    while ((bytesSent1 = send(request_fd, bufptr1, bytesToSend1, 0)) > 0){
 
@@ -380,30 +392,18 @@ int main(int argc, char* argv[])
 				while((bytesRecieved = recv(request_fd, bufptr, bufSpace, 0)) > 0){
 					serverResponse += bufptr;
 				}
-				serverResponse += "\n";
+				serverResponse += "\n"; // so telnet's "connection closed by remote server" is shown on newline
 			
 			
 		}
 
-			int bytesToSend2 = serverResponse.length() + 1;
-			int bytesSent2 = 0;
-			char* response_tosend = new char[bytesToSend2];
-			strcpy(response_tosend, serverResponse.c_str());
-		  	
-		    char* bufptr2 = response_tosend;
-		 	
-		    while ((bytesSent2 = send(new_fd, bufptr2, bytesToSend2, 0)) > 0){
-
-				bytesToSend2 = bytesToSend2 - bytesSent2;
-				bufptr2 += bytesSent2;
-				
-			}
+		sendResponseToClient(serverResponse, new_fd);
+	
 			
 
 			
-          delete[] request;
-          //delete[] final_format;
-          delete[] response_tosend;			
+          delete[] request_in;
+      		
 		}
 		close(new_fd);  // parent doesn't need this
 	}
