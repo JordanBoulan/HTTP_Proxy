@@ -143,7 +143,7 @@ int main(int argc, char* argv[])
 		exit(1);
 	}
 
-	printf("server: waiting for connections...\n");
+	//printf("server: waiting for connections...\n");
 
 	while(1) {  // main accept() loop
 		sin_size = sizeof their_addr;
@@ -166,6 +166,7 @@ int main(int argc, char* argv[])
 				for (int i = 0; i < bytesRecieved; i++){
 					request_input += bufptr[i]; 
 				}
+				memset(bufptr, 0, MAXDATASIZE-1);
 				// storing it in a string handles memory so we dont have to worry about buffer overflow.
 				// we can now reuse/overwrite on the same buffer
 			
@@ -380,7 +381,7 @@ int main(int argc, char* argv[])
 			    while ((bytesSent1 = send(request_fd, bufptr1, bytesToSend1, 0)) > 0){
 
 					bytesToSend1 = bytesToSend1 - bytesSent1;
-					bufptr1 += bytesSent1;
+					
 					
 				}
 				
@@ -390,7 +391,10 @@ int main(int argc, char* argv[])
 				bufptr = recieveBuffer;
 				bufSpace = MAXDATASIZE-1;
 				while((bytesRecieved = recv(request_fd, bufptr, bufSpace, 0)) > 0){
-					serverResponse += bufptr;
+					for (int i = 0; i < bytesRecieved; i++){
+						serverResponse += bufptr[i]; 
+					}
+					memset(bufptr, 0, MAXDATASIZE-1);
 				}
 				serverResponse += "\n"; // so telnet's "connection closed by remote server" is shown on newline
 			
