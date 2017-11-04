@@ -301,8 +301,6 @@ int main(int argc, char* argv[])
 				std::string hostee = "Host";
 				option = unformatted.substr(0, colon);
 
-				printf("OPTION: %s\n", option.c_str());
-
 				if(option == connection){
 					printf("%s\n", "FOUND DBL CONNECT");
 				}
@@ -315,7 +313,7 @@ int main(int argc, char* argv[])
 					std::string header = option + ": " + value;
 					printf("%s\n", header.c_str());
 
-					request_formatted += header;
+					//request_formatted += header;
 					request_formatted += " \r\n";
 					}
 			}
