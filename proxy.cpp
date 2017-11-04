@@ -290,32 +290,62 @@ int main(int argc, char* argv[])
 			request_formatted += "Host:" + host + "\r\n";
 			request_formatted += "Connection:close \r\n";		
 
+			//printf("4:%s\n", lines[4]);
+			//printf("5:%s\n", lines[5]);
+			//printf("6:%s\n", lines[6]);
 			for(int i = 3; i < index; i++){
-				printf("LINE:%d ~ %s\n", i, lines[i]);
 
 				unformatted = lines[i];
 				int colon = unformatted.find(": ", 0);
 
 				std::string option, value;
-				std::string connection = "Connection";
-				std::string hostee = "Host";
 				option = unformatted.substr(0, colon);
+				bool isGood;
 
-				if(option == connection){
-					printf("%s\n", "FOUND DBL CONNECT");
+				if(option == "Accept"){
+					isGood = false;
+					//printf("LINE:%d ~ %s\n", i, lines[i]);
+					request_formatted += "Accept: text/html";
+					request_formatted += " \r\n";			
 				}
-				else if(option == hostee){
-					printf("%s\n", "FOUND DBL HOST");
+				else if(option == "Connection"){
+					isGood = false;
+				}
+				else if(option == "Host"){
+					isGood = false;
+				}
+				else if(option == "Cookie"){					
+					isGood = false;
+				}
+				else if(option == "User-Agent"){
+					isGood = false;					
+				}
+				else if(option == "Accept-Language"){
+					isGood = false;					
+				}
+				else if(option == "Accept-Encoding"){
+					isGood = false;					
+				}
+				else if(option == "Referer"){
+					isGood = true;					
+				}
+				else if(option == "If-None-Match"){
+					isGood = true;
 				}
 				else{
+					printf("LINE:%d ~ %s\n", i, lines[i]);
+					isGood = false;
+				}
+				
+				if(isGood == true){
 					value = unformatted.substr(colon + 2, (unsigned)unformatted.length());
 				
 					std::string header = option + ": " + value;
-					printf("%s\n", header.c_str());
+					//printf("%s\n", header.c_str());
 
-					//request_formatted += header;
+					request_formatted += header;
 					request_formatted += " \r\n";
-					}
+				}
 			}
 
 			/*
