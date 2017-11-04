@@ -159,8 +159,6 @@ int main(int argc, char* argv[])
 
 		if (!fork()) { // this is the child process
 			close(sockfd); // child doesn't need the listener
-			
-			printf("new connection established. %d\n", count);
 
 			int bytesRecieved = -2;
 			int bufSpace = MAXDATASIZE-1;
@@ -290,9 +288,6 @@ int main(int argc, char* argv[])
 			request_formatted += "Host:" + host + "\r\n";
 			request_formatted += "Connection:close \r\n";		
 
-			//printf("4:%s\n", lines[4]);
-			//printf("5:%s\n", lines[5]);
-			//printf("6:%s\n", lines[6]);
 			for(int i = 3; i < index; i++){
 
 				unformatted = lines[i];
@@ -300,13 +295,32 @@ int main(int argc, char* argv[])
 
 				std::string option, value;
 				option = unformatted.substr(0, colon);
+				value = unformatted.substr(colon + 2, (unsigned)unformatted.length());
 				bool isGood;
 
 				if(option == "Accept"){
-					isGood = false;
-					//printf("LINE:%d ~ %s\n", i, lines[i]);
-					request_formatted += "Accept: text/html";
-					request_formatted += " \r\n";			
+					if(value.substr(0, 3) == "*/*"){	
+						isGood = true;
+					}
+					else{
+						isGood = false;
+						printf("LINE:%d ~ VALUE: %s\n", i, value.c_str());	
+					}		
+				}
+				else if(option == "X-Requested-With"){
+					isGood = true;					
+				}
+				else if(option == "Origin"){
+					isGood = true;					
+				}
+				else if(option == "Pragma"){
+					isGood = true;					
+				}
+				else if(option == "Referer"){
+					isGood = true;					
+				}
+				else if(option == "If-None-Match"){
+					isGood = true;
 				}
 				else if(option == "Connection"){
 					isGood = false;
@@ -326,23 +340,14 @@ int main(int argc, char* argv[])
 				else if(option == "Accept-Encoding"){
 					isGood = false;					
 				}
-				else if(option == "Referer"){
-					isGood = true;					
-				}
-				else if(option == "If-None-Match"){
-					isGood = true;
-				}
 				else{
 					printf("LINE:%d ~ %s\n", i, lines[i]);
 					isGood = false;
 				}
 				
 				if(isGood == true){
-					value = unformatted.substr(colon + 2, (unsigned)unformatted.length());
-				
 					std::string header = option + ": " + value;
 					//printf("%s\n", header.c_str());
-
 					request_formatted += header;
 					request_formatted += " \r\n";
 				}
