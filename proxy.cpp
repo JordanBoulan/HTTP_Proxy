@@ -143,26 +143,31 @@ int main(int argc, char* argv[])
 		exit(1);
 	}
 
-	//printf("server: waiting for connections...\n");
+	printf("server: waiting for connections...\n");
+	int count = 0;
 
 	while(1) {  // main accept() loop
 		sin_size = sizeof their_addr;
 		new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
+		count++;
+
 		if (new_fd == -1)
 		{
 			//perror("accept error");
 			exit(1);
 		}
-	
 
 		if (!fork()) { // this is the child process
 			close(sockfd); // child doesn't need the listener
+			
+			printf("new connection established. %d\n", count);
+
 			int bytesRecieved = -2;
 			int bufSpace = MAXDATASIZE-1;
 			char* bufptr = recieveBuffer;
 			
 			while((bytesRecieved = recv(new_fd, bufptr, bufSpace, 0)) > 0){
-				
+					
 				for (int i = 0; i < bytesRecieved; i++){
 					request_input += bufptr[i]; 
 				}
@@ -183,8 +188,7 @@ int main(int argc, char* argv[])
 			int index = 3;
 			std::vector<char*> lines(size);
 			std::string serverResponse = "";
-			
-		    
+					    
 		    // parsing first line of input request
 			char* request = strtok(request_in, " ");
 			
@@ -280,42 +284,75 @@ int main(int argc, char* argv[])
 				
 			}
 
-			
-			
 			request_formatted += "GET ";
 			request_formatted += path;
 			request_formatted += " HTTP/1.0\r\n";
 			request_formatted += "Host:" + host + "\r\n";
-			request_formatted += "Connection:close \r\n";
+			request_formatted += "Connection:close \r\n";		
 
+			for(int i = 3; i < index; i++){
+				printf("LINE:%d ~ %s\n", i, lines[i]);
 
-	
+				unformatted = lines[i];
+				int colon = unformatted.find(": ", 0);
+
+				std::string option, value;
+				std::string connection = "Connection";
+				std::string hostee = "Host";
+				option = unformatted.substr(0, colon);
+
+				printf("OPTION: %s\n", option.c_str());
+
+				if(option == connection){
+					printf("%s\n", "FOUND DBL CONNECT");
+				}
+				else if(option == hostee){
+					printf("%s\n", "FOUND DBL HOST");
+				}
+				else{
+					value = unformatted.substr(colon + 2, (unsigned)unformatted.length());
+				
+					std::string header = option + ": " + value;
+					printf("%s\n", header.c_str());
+
+					request_formatted += header;
+					request_formatted += " \r\n";
+					}
+			}
+
+			/*
 			int colon, colon2;
 			
-
 			// add option lines to the formatted string
 			for (int i = 3; i < index; i++){
+				printf("%s\n", lines[i]);
 				unformatted = lines[i];
 				colon = unformatted.find(":", 0);
 				colon2 = unformatted.find(":", colon + 1);
 				// check if no colon is present in line
-				if(colon == -1 ){
+				
+                if(colon == -1 ){
 					isFormated = false;
 				}
+ 				
 				// check if there are multiple colons in a single line
 				else if(colon2 != -1 ){
 					isFormated = false;
 
 				}
+                               
 				std::string header = lines[i];
 				if (header.find("connection", 0) == std::string::npos && header.find("Connection", 0) == std::string::npos){ //we always want connection:close regardless of user input
 					request_formatted += lines[i];
 					request_formatted += "\r\n";
 					
 				}
-			}
+                               
+			}	
+			*/
+			
 			request_formatted += "\r\n";
-
+			
 			// error checks and server response
 			
 			// request check
