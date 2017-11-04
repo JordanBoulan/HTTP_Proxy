@@ -24,11 +24,12 @@ http://beej.us/guide/bgnet/output/html/multipage/clientserver.html
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <pthread.h>
 #include <iostream>
 #include <vector>
 
 
-#define BACKLOG 10	 // how many pending connections queue will hold
+#define BACKLOG 30	 // how many pending connections queue will hold
 #define MAXDATASIZE 100 // max number of bytes we can get at once 
 
 
@@ -40,6 +41,9 @@ void sigchld_handler(int s)
 	while(waitpid(-1, NULL, WNOHANG) > 0);
 
 	errno = saved_errno;
+}
+void sigpipe_handler(int s){
+
 }
 
 
@@ -67,99 +71,23 @@ void sendResponseToClient(std::string serverResponse, int new_fd){
 
 			bytesToSend2 = bytesToSend2 - bytesSent2;
 			bufptr2 += bytesSent2;
-				
-	}
+			if (bytesToSend2 <1){
+				break;	
+			}
 	delete[] response_tosend;
+			}
 			
 }
 
-
-int main(int argc, char* argv[])
-{
-	if (argc != 2){
-		printf("Argument error! Usage: proxy portNumber\n");
-		exit(1);
-	}
-	int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
-	struct addrinfo hints, *servinfo, *p;
-	struct sockaddr_storage their_addr; // connector's address information
-	socklen_t sin_size;
-	struct sigaction sa;
-	int yes=1;
-	int rv;
-	char recieveBuffer[MAXDATASIZE];
-	std::string request_input = "";
-
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE; // use my IP
-
-	if ((rv = getaddrinfo(NULL, argv[1], &hints, &servinfo)) != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-		return 1;
-	}
-
-	// loop through all the results and bind to the first we can
-	for(p = servinfo; p != NULL; p = p->ai_next) {
-		if ((sockfd = socket(p->ai_family, p->ai_socktype,
-				p->ai_protocol)) == -1) {
-			perror("server: socket");
-			continue;
-		}
-
-		if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
-				sizeof(int)) == -1) {
-			perror("setsockopt");
-			exit(1);
-		}
-
-		if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-			close(sockfd);
-			perror("server: bind");
-			continue;
-		}
-
-		break;
-	}
-
-	freeaddrinfo(servinfo); // all done with this structure
-
-	if (p == NULL)  {
-		fprintf(stderr, "server: failed to bind\n");
-		exit(1);
-	}
-
-	if (listen(sockfd, BACKLOG) == -1) {
-		perror("listen");
-		exit(1);
-	}
-
-	sa.sa_handler = sigchld_handler; // reap all dead processes
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_RESTART;
-	if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-		perror("sigaction");
-		exit(1);
-	}
-
-	//printf("server: waiting for connections...\n");
-
-	while(1) {  // main accept() loop
-		sin_size = sizeof their_addr;
-		new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
-		if (new_fd == -1)
-		{
-			//perror("accept error");
-			exit(1);
-		}
-	
-
-		if (!fork()) { // this is the child process
-			close(sockfd); // child doesn't need the listener
+void* doRequest(void* in){
+			printf("in thread");
 			int bytesRecieved = -2;
 			int bufSpace = MAXDATASIZE-1;
+			char recieveBuffer[MAXDATASIZE];
+			std::string request_input = "";
 			char* bufptr = recieveBuffer;
+			int new_fd = *((int*) in);
+
 			
 			while((bytesRecieved = recv(new_fd, bufptr, bufSpace, 0)) > 0){
 				
@@ -174,6 +102,8 @@ int main(int argc, char* argv[])
 					break; 
 
 			}
+
+			printf("%s\n", request_input.c_str() );
 
 
 			
@@ -191,7 +121,7 @@ int main(int argc, char* argv[])
 			if (request == NULL){
 				    serverResponse += "500 error: Internal Server error\n";
 					sendResponseToClient(serverResponse, new_fd);
-					continue;
+					return NULL;
 
 			}
 
@@ -200,7 +130,7 @@ int main(int argc, char* argv[])
 			if (url == NULL){
 				    serverResponse += "500 error: Internal Server error\n";
 					sendResponseToClient(serverResponse, new_fd);
-					continue;
+					return NULL;
 			}
 
 			char* http_type = strtok(NULL, "\n");
@@ -289,7 +219,7 @@ int main(int argc, char* argv[])
 			request_formatted += "Connection:close \r\n";
 
 
-	
+	/*
 			int colon, colon2;
 			
 
@@ -297,11 +227,11 @@ int main(int argc, char* argv[])
 			for (int i = 3; i < index; i++){
 				unformatted = lines[i];
 				colon = unformatted.find(":", 0);
-				colon2 = unformatted.find(":", colon + 1);
+				colon2 = unformatted.find(":", colon+1);
 				// check if no colon is present in line
 				if(colon == -1 ){
 					isFormated = false;
-				}
+				}2
 				// check if there are multiple colons in a single line
 				else if(colon2 != -1 ){
 					isFormated = false;
@@ -314,11 +244,14 @@ int main(int argc, char* argv[])
 					
 				}
 			}
-			request_formatted += "\r\n";
-
-			// error checks and server response
 			
+			// error checks and server response
+			*/
 			// request check
+
+			request_formatted += "\r\n";
+			printf("%s\n",request_formatted.c_str() );
+
 			if (strcmp(lines[0], "GET") != 0){
 				serverResponse += "501 Error: Request type not supported\n";
 			}
@@ -333,15 +266,15 @@ int main(int argc, char* argv[])
 				int rv1;
 
 				memset(&hints1, 0, sizeof hints1);
-				hints.ai_family = AF_UNSPEC;
-				hints.ai_socktype = SOCK_STREAM;
-				hints.ai_flags = AI_PASSIVE; // use my IP
+				hints1.ai_family = AF_UNSPEC;
+				hints1.ai_socktype = SOCK_STREAM;
+				hints1.ai_flags = AI_PASSIVE; // use my IP
 
 				
 				if ((rv1 = getaddrinfo(host.c_str(), port.c_str(), &hints1, &servinfo1)) != 0) {
 					serverResponse += "500 error: Internal Server error\n";
 					sendResponseToClient(serverResponse, new_fd);
-					continue;
+					return NULL;
 				}
 
 				// loop through all the results and connect to the first we can
@@ -349,12 +282,12 @@ int main(int argc, char* argv[])
 					if ((request_fd = socket(p1->ai_family, p1->ai_socktype,
 							p1->ai_protocol)) == -1) {
 
-						continue;
+						return NULL;
 					}
 
 					if (connect(request_fd, p1->ai_addr, p1->ai_addrlen) == -1) {
-						close(sockfd);
-						continue;
+						close(request_fd);
+						return NULL;
 					}
 
 					break;
@@ -363,7 +296,7 @@ int main(int argc, char* argv[])
 				if (p1 == NULL) {
 					serverResponse += "500 error: Internal Server error\n";
 					sendResponseToClient(serverResponse, new_fd);
-					continue; // will modularize in next version
+					return NULL; // will modularize in next version
 				}
 
 				freeaddrinfo(servinfo1); // all done with this structure
@@ -381,7 +314,10 @@ int main(int argc, char* argv[])
 			    while ((bytesSent1 = send(request_fd, bufptr1, bytesToSend1, 0)) > 0){
 
 					bytesToSend1 = bytesToSend1 - bytesSent1;
-					
+					bufptr1 += bytesSent1;
+					if (bytesToSend1 < 1){
+						break;
+					}
 					
 				}
 				
@@ -390,16 +326,23 @@ int main(int argc, char* argv[])
 
 				bufptr = recieveBuffer;
 				bufSpace = MAXDATASIZE-1;
-				while((bytesRecieved = recv(request_fd, bufptr, bufSpace, 0)) > 0){
+				while((bytesRecieved = recv(request_fd, bufptr, bufSpace, 0)) > 0 ){
 					for (int i = 0; i < bytesRecieved; i++){
 						serverResponse += bufptr[i]; 
 					}
 					memset(bufptr, 0, MAXDATASIZE-1);
+				//	if(serverResponse.length() > 3 && serverResponse.at(serverResponse.length()-1) == '\n' && serverResponse.at(serverResponse.length()-2) == '\r' && serverResponse.at(serverResponse.length()-3) == '\n' && serverResponse.at(serverResponse.length()-4) == '\r'){ 
+				//	break;
+				//	} 
+
+
 				}
-				serverResponse += "\n"; // so telnet's "connection closed by remote server" is shown on newline
+		
 			
+
 			
 		}
+		printf("%s\n",serverResponse.c_str() );
 
 		sendResponseToClient(serverResponse, new_fd);
 	
@@ -407,10 +350,118 @@ int main(int argc, char* argv[])
 
 			
           delete[] request_in;
-      		
-		}
-		close(new_fd);  // parent doesn't need this
+          return NULL;
+}
+
+int main(int argc, char* argv[])
+{
+	if (argc != 2){
+		printf("Argument error! Usage: proxy portNumber\n");
+		exit(1);
 	}
+	int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
+	struct addrinfo hints, *servinfo, *p;
+	struct sockaddr_storage their_addr; // connector's address information
+	socklen_t sin_size;
+	struct sigaction sa, sa_pipe;
+	int yes=1;
+	int rv;
+	std::string request_input = "";
+	int threadCount = 0;
+	std::vector<pthread_t> ThreadList(30);
+
+
+	
+
+
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE; // use my IP
+
+	if ((rv = getaddrinfo(NULL, argv[1], &hints, &servinfo)) != 0) {
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+		return 1;
+	}
+
+	// loop through all the results and bind to the first we can
+	for(p = servinfo; p != NULL; p = p->ai_next) {
+		if ((sockfd = socket(p->ai_family, p->ai_socktype,
+				p->ai_protocol)) == -1) {
+			perror("server: socket");
+			continue;
+		}
+
+		if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
+				sizeof(int)) == -1) {
+			perror("setsockopt");
+			exit(1);
+		}
+
+		if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+			close(sockfd);
+			perror("server: bind");
+			continue;
+		}
+
+		break;
+	}
+
+	freeaddrinfo(servinfo); // all done with this structure
+
+	if (p == NULL)  {
+		fprintf(stderr, "server: failed to bind\n");
+		exit(1);
+	}
+
+	if (listen(sockfd, BACKLOG) == -1) {
+		perror("listen");
+		exit(1);
+	}
+
+	sa.sa_handler = sigchld_handler; // reap all dead processes
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_RESTART;
+	if (sigaction(SIGCHLD, &sa, NULL) == -1) {
+		perror("sigaction");
+		exit(1);
+	}
+
+	sa_pipe.sa_handler = sigpipe_handler; // reap all dead processes
+	sigemptyset(&sa_pipe.sa_mask);
+	sa_pipe.sa_flags = SA_RESTART;
+	if (sigaction(SIGPIPE, &sa_pipe, NULL) == -1) {
+		perror("sigpipe");
+		exit(1);
+	}
+
+
+	//printf("server: waiting for connections...\n");
+
+	while(1) {  // main accept() loop
+		sin_size = sizeof their_addr;
+		new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
+		if (new_fd == -1)
+		{
+			//perror("accept error");
+			//exit(1);
+		}
+	
+		
+		
+		 int* arg = &new_fd;
+	 if ((unsigned) threadCount > (ThreadList.size() - 1)){
+//			ThreadList.resize(ThreadList.size()*2);
+	 		printf("resize");
+		}
+		 pthread_create(&ThreadList[0], NULL, doRequest, (void*) arg);
+		 pthread_detach(ThreadList[0]);
+//		 threadCount++;
+	}
+      		
+		
+		
+	
 
 	return 0;
 }
