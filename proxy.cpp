@@ -27,10 +27,13 @@ http://beej.us/guide/bgnet/output/html/multipage/clientserver.html
 #include <pthread.h>
 #include <iostream>
 #include <vector>
+#include <time.h>
 
 
 #define BACKLOG 30	 // how many pending connections queue will hold
-#define MAXDATASIZE 100 // max number of bytes we can get at once 
+#define MAXDATASIZE 100
+#define MAXTHREADS 20  
+int numThreads = 0;
 
 
 void sigchld_handler(int s)
@@ -57,25 +60,49 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-
 void sendResponseToClient(std::string serverResponse, int new_fd){
-
 	int bytesToSend2 = serverResponse.length() + 1;
 	int bytesSent2 = 0;
 	char* response_tosend = new char[bytesToSend2];
-	strcpy(response_tosend, serverResponse.c_str());
+	strcpy(response_tosend, serverResponse.c_str());  	
+	char* bufptr2 = response_tosend;
+		 	
+	while ((bytesSent2 = send(new_fd, bufptr2, bytesToSend2, 0)) > 0){
+		bytesToSend2 = bytesToSend2 - bytesSent2;
+		bufptr2 += bytesSent2;
+		if (bytesToSend2 <1){
+			break;	
+		}
+		delete[] response_tosend;
+	}	
+}
+
+
+
+void sendResponseToClient(std::vector<char> byteHolder, int new_fd){
+
+	int bytesToSend2 = byteHolder.size();
+	int bytesSent2 = 0;
+	char* response_tosend = new char[byteHolder.size()];
+	for (int i = 0; (unsigned)i < byteHolder.size(); i++){
+		response_tosend[i] = byteHolder[i];
+		printf("%c", response_tosend[i]);
+	}
+	//printf("sending to clint...");
 		  	
 	char* bufptr2 = response_tosend;
 		 	
 	while ((bytesSent2 = send(new_fd, bufptr2, bytesToSend2, 0)) > 0){
-
+		//	printf("sending to client...");
 			bytesToSend2 = bytesToSend2 - bytesSent2;
 			bufptr2 += bytesSent2;
+		
 			if (bytesToSend2 <1){
 				break;	
 			}
 	delete[] response_tosend;
-			}
+	
+	}
 			
 }
 
@@ -87,10 +114,20 @@ void* doRequest(void* in){
 			std::string request_input = "";
 			char* bufptr = recieveBuffer;
 			int new_fd = *((int*) in);
+			//struct timeval timeout;      
+			//timeout.tv_sec = 5;
+			    
 
+			//if (setsockopt (new_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
+			  //              sizeof(timeout)) < 0)
+			    // perror("setsockopt failed\n");
+
+			//if (setsockopt (new_fd, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout,
+			  //              sizeof(timeout)) < 0)
+			    // perror("setsockopt failed\n");
 			
 			while((bytesRecieved = recv(new_fd, bufptr, bufSpace, 0)) > 0){
-				
+				//printf("in while...\n");
 				for (int i = 0; i < bytesRecieved; i++){
 					request_input += bufptr[i]; 
 				}
@@ -168,7 +205,7 @@ void* doRequest(void* in){
 			int start = unformatted.find( "//", 0);
 
 			if ((unsigned)start == std::string::npos)
-				isFormated = false;
+				start = -2;
 
 			int relitive_start = unformatted.find( "/", start+2);
 			int port_specified = unformatted.find(":", start+2);
@@ -188,7 +225,7 @@ void* doRequest(void* in){
 					port = "80";
 					path = unformatted.substr(relitive_start, std::string::npos);
 					host = unformatted.substr(start+2, relitive_start-(start+2));
-
+\
 				}
 
 			}
@@ -215,38 +252,96 @@ void* doRequest(void* in){
 			request_formatted += "GET ";
 			request_formatted += path;
 			request_formatted += " HTTP/1.0\r\n";
-			request_formatted += "Host:" + host + "\r\n";
-			request_formatted += "Connection:close \r\n";
-
-
-	/*
-			int colon, colon2;
+			if (host.find("www", 0) == std::string::npos)
+				request_formatted += "Host:" "www."+ host + "\r\n";
+			else
+				request_formatted += "Host:" + host + "\r\n";
+			
+			request_formatted += "Connection:close\r\n";
 			
 
-			// add option lines to the formatted string
-			for (int i = 3; i < index; i++){
+			for(int i = 3; i < index; i++){
+				//printf("inside the loop...\n");
 				unformatted = lines[i];
-				colon = unformatted.find(":", 0);
-				colon2 = unformatted.find(":", colon+1);
-				// check if no colon is present in line
-				if(colon == -1 ){
-					isFormated = false;
-				}2
-				// check if there are multiple colons in a single line
-				else if(colon2 != -1 ){
-					isFormated = false;
+				
+				int colon = unformatted.find(':', 0);
 
+				if ((unsigned)colon == std::string::npos){
+					isFormated = false;
+					printf("Failed: %s\n", unformatted.c_str());
+					break;
 				}
-				std::string header = lines[i];
-				if (header.find("connection", 0) == std::string::npos && header.find("Connection", 0) == std::string::npos){ //we always want connection:close regardless of user input
+				
+				std::string option, value;
+				option = unformatted.substr(0, colon);
+				value = unformatted.substr(colon + 1, std::string::npos);
+				bool isGood;
+				
+				
+				
+
+				if(option.compare("Accept") == 0){
+					//if(value.substr(0, 3) == ""){	
+						isGood = false;
+					}
+					
+					
+
+						
+						
+				
+				else if(option.compare("X-Requested-With") == 0){
+					isGood = true;					
+				}
+				else if(option.compare("Origin") == 0){
+					isGood = true;					
+				}
+				else if(option.compare("Pragma") == 0){
+					isGood = true;					
+				}
+				else if(option.compare("Referer") == 0){
+					isGood = true;					
+				}
+				else if(option.compare("If-None-Match") == 0){
+					isGood = true;
+				}
+				else if(option.compare("Connection") == 0){
+					isGood = false;
+				}
+				else if(option.compare("Host") == 0){
+					isGood = false;
+				}
+				else if(option.compare("Cookie") == 0){					
+					isGood = false;
+				}
+				else if(option.compare("User-Agent") == 0){
+					isGood = false;					
+				}
+				else if(option.compare("Accept-Language") == 0){
+					isGood = false;					
+				}
+				else if(option.compare("Accept-Encoding") == 0){
+					isGood = false;					
+				}
+				else if(option.compare("Proxy-Connection") == 0){
+					isGood = false;					
+				}
+				else{
+					printf("LINE:%d ~ %s\n", i, lines[i]);
+					isGood = false;
+				}
+				
+				if(isGood == true){
+					
+					
 					request_formatted += lines[i];
 					request_formatted += "\r\n";
-					
 				}
+				
 			}
-			
+
 			// error checks and server response
-			*/
+			
 			// request check
 
 			request_formatted += "\r\n";
@@ -302,7 +397,18 @@ void* doRequest(void* in){
 				freeaddrinfo(servinfo1); // all done with this structure
 
 
-			
+				//struct timeval timeout;      
+			    //timeout.tv_sec = 7;
+			    
+
+			 //   if (setsockopt (request_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
+			   ///             sizeof(timeout)) < 0)
+			      //  perror("setsockopt failed\n");
+
+			    //f (setsockopt (request_fd, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout,
+			       //         sizeof(timeout)) < 0)
+			    //    perror("setsockopt failed\n");
+
 				int bytesToSend1 = request_formatted.length() +1;
 				char* final_format = new char[bytesToSend1];
 				strcpy(final_format, request_formatted.c_str());
@@ -324,11 +430,22 @@ void* doRequest(void* in){
 			
 				delete[] final_format;
 
+				std::vector<char> byteHolder(100);
+				int holderSize = 100;
+				int curIndex = 0;
 				bufptr = recieveBuffer;
 				bufSpace = MAXDATASIZE-1;
 				while((bytesRecieved = recv(request_fd, bufptr, bufSpace, 0)) > 0 ){
+					
 					for (int i = 0; i < bytesRecieved; i++){
-						serverResponse += bufptr[i]; 
+						if (curIndex == holderSize){
+							byteHolder.resize(holderSize*2);
+							holderSize = holderSize*2;
+						}
+
+						byteHolder[curIndex] = bufptr[i];
+						//printf("%c\n", byteHolder[curIndex] );
+						curIndex++;
 					}
 					memset(bufptr, 0, MAXDATASIZE-1);
 				//	if(serverResponse.length() > 3 && serverResponse.at(serverResponse.length()-1) == '\n' && serverResponse.at(serverResponse.length()-2) == '\r' && serverResponse.at(serverResponse.length()-3) == '\n' && serverResponse.at(serverResponse.length()-4) == '\r'){ 
@@ -337,19 +454,19 @@ void* doRequest(void* in){
 
 
 				}
-		
-			
 
-			
+		close(request_fd);
+		sendResponseToClient(byteHolder, new_fd);	
 		}
-		printf("%s\n",serverResponse.c_str() );
+		
+		//printf("%s\n",serverResponse.c_str() );
 
-		sendResponseToClient(serverResponse, new_fd);
-	
-			
+		
+		close(new_fd);
 
-			
+		
           delete[] request_in;
+          numThreads--;
           return NULL;
 }
 
@@ -429,7 +546,6 @@ int main(int argc, char* argv[])
 
 	sa_pipe.sa_handler = sigpipe_handler; // reap all dead processes
 	sigemptyset(&sa_pipe.sa_mask);
-	sa_pipe.sa_flags = SA_RESTART;
 	if (sigaction(SIGPIPE, &sa_pipe, NULL) == -1) {
 		perror("sigpipe");
 		exit(1);
@@ -440,10 +556,15 @@ int main(int argc, char* argv[])
 
 	while(1) {  // main accept() loop
 		sin_size = sizeof their_addr;
+		//while (numThreads == MAXTHREADS){
+		//	printf("waiting\n");
+		//	sleep(1);
+		//}
+		printf("Listening...\n");
 		new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
 		if (new_fd == -1)
 		{
-			//perror("accept error");
+			perror("accept error");
 			//exit(1);
 		}
 	
@@ -456,6 +577,7 @@ int main(int argc, char* argv[])
 		}
 		 pthread_create(&ThreadList[0], NULL, doRequest, (void*) arg);
 		 pthread_detach(ThreadList[0]);
+		 numThreads++;
 //		 threadCount++;
 	}
       		
