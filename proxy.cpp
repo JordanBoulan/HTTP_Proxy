@@ -64,8 +64,16 @@ void sendResponseToClient(std::string serverResponse, int new_fd){
 	int bytesSent2 = 0;
 	char* response_tosend = new char[bytesToSend2];
 	strcpy(response_tosend, serverResponse.c_str());
-		  	
+
 	char* bufptr2 = response_tosend;
+	char* buffer = new char[serverResponse.size()];
+	for(int i = 0; (unsigned)i < serverResponse.size(); i++){
+		//printf("%c\n", serverResponse[i]);
+		buffer[i] = serverResponse[i];
+	}
+
+	printf("ServerRes:\n%s\n", serverResponse.c_str());
+	printf("Buffer:\n%s\n", buffer);
 		 	
 	while ((bytesSent2 = send(new_fd, bufptr2, bytesToSend2, 0)) > 0){
 
@@ -75,12 +83,11 @@ void sendResponseToClient(std::string serverResponse, int new_fd){
 				break;	
 			}
 	delete[] response_tosend;
-			}
-			
+			}			
 }
 
 void* doRequest(void* in){
-			printf("in thread");
+			//printf("in thread");
 			int bytesRecieved = -2;
 			int bufSpace = MAXDATASIZE-1;
 			char recieveBuffer[MAXDATASIZE];
@@ -103,7 +110,7 @@ void* doRequest(void* in){
 
 			}
 
-			printf("%s\n", request_input.c_str() );
+			//printf("%s\n", request_input.c_str() );
 
 
 			
@@ -250,7 +257,7 @@ void* doRequest(void* in){
 			// request check
 
 			request_formatted += "\r\n";
-			printf("%s\n",request_formatted.c_str() );
+			//printf("%s\n",request_formatted.c_str() );
 
 			if (strcmp(lines[0], "GET") != 0){
 				serverResponse += "501 Error: Request type not supported\n";
@@ -342,7 +349,7 @@ void* doRequest(void* in){
 
 			
 		}
-		printf("%s\n",serverResponse.c_str() );
+		//printf("%s\n",serverResponse.c_str() );
 
 		sendResponseToClient(serverResponse, new_fd);
 	
@@ -380,7 +387,7 @@ int main(int argc, char* argv[])
 	hints.ai_flags = AI_PASSIVE; // use my IP
 
 	if ((rv = getaddrinfo(NULL, argv[1], &hints, &servinfo)) != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+		//fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
 		return 1;
 	}
 
