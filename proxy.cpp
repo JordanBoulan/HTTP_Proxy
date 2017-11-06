@@ -57,6 +57,24 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
+int sendall(int s, char *buf, int *len)
+{
+    int total = 0;        // how many bytes we've sent
+    int bytesleft = *len; // how many we have left to send
+    int n;
+
+    while(total < *len) {
+        n = send(s, buf+total, bytesleft, 0);
+        if (n == -1) { break; }
+        total += n;
+        bytesleft -= n;
+    }
+
+    *len = total; // return number actually sent here
+
+    return n==-1?-1:0; // return -1 on failure, 0 on success
+} 
+
 void sendResponseToClient(std::string serverResponse, int new_fd){
 	int bytesToSend2 = serverResponse.length() + 1;
 	int bytesSent2 = 0;
@@ -100,9 +118,6 @@ void* doRequest(void* in){
 					break; 
 
 			}
-
-			printf("%s\n", request_input.c_str() );
-
 
 			
 			char* request_in = new char[request_input.length()+1];
@@ -234,7 +249,6 @@ void* doRequest(void* in){
 			// request check
 
 			request_formatted += "\r\n";
-			printf("%s\n",request_formatted.c_str() );
 
 			if (strcmp(lines[0], "GET") != 0){
 				serverResponse += "501 Error: Request type not supported\n";
@@ -317,8 +331,15 @@ void* doRequest(void* in){
 				int curIndex = 0;
 				bufptr = recieveBuffer;
 				bufSpace = MAXDATASIZE-1;
-				while((bytesRecieved = recv(request_fd, bufptr, bufSpace, 0)) > 0 ){
-					
+				bool keepgoing = true;
+				while (keepgoing)
+				{
+					bytesRecieved = recv(request_fd, bufptr, bufSpace, 0);
+					if (bytesRecieved == 0)
+						keepgoing = false;
+					if (bytesRecieved == -1)
+						break;
+
 					for (int i = 0; i < bytesRecieved; i++){
 						if (curIndex == holderSize){
 							byteHolder.resize(holderSize*2);
@@ -331,21 +352,12 @@ void* doRequest(void* in){
 					}
 
 
-					int bytesToSend2 = bytesRecieved;
-					char* bufptr2 = recieveBuffer;
-					int bytesSent2;
-					while ((bytesSent2 = send(new_fd, bufptr2, bytesToSend2, 0)) > 0){
-	
-						bytesToSend2 = bytesToSend2 - bytesSent2;
-						bufptr2 += bytesSent2;
-		
-						if (bytesToSend2 <1){
-							break;	
-						}
+					
+					int val = sendall(new_fd, recieveBuffer, &bytesRecieved);
+					if (val == -1)
+						break;
 
-
-				}
-						memset(bufptr, 0, MAXDATASIZE-1);
+					memset(bufptr, 0, MAXDATASIZE-1);
 
 		
 		}
