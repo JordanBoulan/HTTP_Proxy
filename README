@@ -1,39 +1,75 @@
 Jordan Boulanger, Morgan Weaver, Ellery Baines
 Class: 5510, Computer Networks
-Project 2: Group Project - Implementing a Simple HTTP Web Proxy: Part 1
-Date: 10/29/2017
+Project 2: Group Project - Implementing a Simple HTTP Web Proxy: Part 2
+Date: 11/5//2017
 Files: proxy.cpp (no header file), makefile, README.txt
 
-This program is comprised of 3 files; README.txt, proxy.cpp, and a makefile. 
+This program is comprised of 3 files; 
+README.txt, proxy.cpp, and a makefile. 
 Usage: 
-Run 'make default' to create the a proxy executable.
-use: ./proxy [port]
-to run the proxy program listening on the specified port
+Run 'make default' to create the a proxy executable, then:
+./proxy <port #> 
+to run the proxy program with the designated listening port
 
 Program process:
 
-1. The program creates a proxy server that listens for incoming TCP connections on a disgnated socket. 
-
+1. The program creates a proxy server that listens for incoming TCP connections 
+   on a designated socket. 
 2. The server waits for incoming client connections. 
-
-3. The server will create a child process in order to handle new incoming connections.
-
+3. The server creates a child process in order to handle new incoming 
+   connections.
 4. The proxy server takes an ABSOLUTE HTTP GET request, with the format:
-	GET http://www.url.com/relative_path HTTP/1.0 [header1:values] [header2:values]...
+	
+GET http://www.url.com/relative_path HTTP/1.0 [header1:values] [header2:values]...
 
-5. The proxy server parses the request, returning an error to the client if the request is malformatted or if the request contains an unsupported request type.
+5. The proxy server parses the request, returning an error to the client if the 
+   request is incorrectly formatted or if the request contains an unsupported 
+   request type.
+6. The proxy server uses a telnet connection to the requested host server to 
+   fulfill the client's request. 
+7. Upon receiving response from the requested host server, the web proxy sends 
+   the response back to the client utilizing the TCP connection it previously 
+   established within the child process.
+8. Finally, the child process closes the TCP Connection.
 
-6. The proxy server uses a telnet connection to the requested host server to fufill the client's request. 
-
-7. Upon recieving reponse from the requested host server, the web proxy sends the response back to the client utilizing the TCP connection it previously stablished.
-
-8. Finally, the server closes the TCP Connection.
-
-Main Contributions:
-Jordan: Connection with remote server & sending back response
-Ellery: Parsing the request, checking the request, building new request string
-Morgan: base connection code for telnet, remote etc, Fixed memory leak, removed compile warnings, code formatting
+Contributions:
+Jordan: Connection with remote server and sending back response stub, 
+        multithreading incorporation, bug hunter, function refactoring 
+Ellery: Parsing the request, checking the request, building new request string, 
+        request header option parsing, option filters
+Morgan: Base connection code for telnet, remote etc, fixed memory leak, removed 
+        compile warnings, code formatting, morale
 
 Design decisions:
-Everything is in main. This makes it easy to follow the code flow, but makes it less readable and code is not reused. The code for creating a socket is used 3 times and could be put into a function. It was easier to debug (find which socket was failing etc) and make sure everything was working properly by leaving the code in main. In part two, we will need to open many more connections and will will most likely add modularity then for code readability and for the ability to reuse connection/socket opening code. Futhermore, it might make sense to put all the code in a class and include a header file, to make the code easier to read and understand. However, for this version we were focused purely on working functionality rather than asthetics.
+The central flow of the program is in main(), the program establishes a 
+listening socket on the requested port in the command line argument. The 
+client/web proxy request handling takes place in the doRequest() method, with 
+additional methods for handling TCP connections and child process clean up. This
+was a transition from the first half of the project when everything ran in 
+main(). We elected to do this for ease of debugging and isolating what the child
+processes would be doing. The code for creating a socket is used 3 times and 
+thus, was also placed into a function. It was much easier for debugging 
+(find which socket was failing etc) and make sure everything was working 
+properly by leaving the primary flow in main, and separating out the child 
+process into the doRequest() function. Lastly, it might make sense to put all 
+the code in a class and include a header file, to make the code easier to read 
+and understand. 
+
+Strengths:
+Our proxy is no longer a single user supported instance, with the addition of 
+multithreading support the creating of the creates child processes is easier to 
+control, manage and debug. The program is lightweight and easy to run, making it
+portable. The proxy is capable of loading text/css, text/html, and images of a 
+variety of types. When errors occur there is a error prompt which includes 
+standard operational error codes for debugging purposes. 
+
+Weaknesses:
+Multithreading is limited to the resources of wherever system the program is 
+being run from and could easily experience problems if there are a multitude of 
+users making requests at the same time. The proxy lacks any type of caching 
+system; which would help with storing states, loading pages, passing request 
+objects, etc. The only supported version of HTTP the proxy can use is 1.0, which
+ severely limits the program’s utility with the modern internet.
+
+
 
