@@ -1,3 +1,2 @@
 default: proxy.cpp
-	g++ proxy.cpp -o proxy
-
+	g++ proxy.cpp -o proxy -lpthread

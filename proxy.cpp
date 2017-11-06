@@ -86,7 +86,7 @@ void sendResponseToClient(std::vector<char> byteHolder, int new_fd){
 	char* response_tosend = new char[byteHolder.size()];
 	for (int i = 0; (unsigned)i < byteHolder.size(); i++){
 		response_tosend[i] = byteHolder[i];
-		printf("%c", response_tosend[i]);
+		
 	}
 	//printf("sending to clint...");
 		  	
@@ -107,27 +107,30 @@ void sendResponseToClient(std::vector<char> byteHolder, int new_fd){
 }
 
 void* doRequest(void* in){
-			printf("in thread");
+
 			int bytesRecieved = -2;
 			int bufSpace = MAXDATASIZE-1;
 			char recieveBuffer[MAXDATASIZE];
 			std::string request_input = "";
 			char* bufptr = recieveBuffer;
 			int new_fd = *((int*) in);
-			//struct timeval timeout;      
-			//timeout.tv_sec = 5;
+
+			struct timeval timeout;      
+			timeout.tv_sec = 7;
+			timeout.tv_usec = 0;
 			    
 
-			//if (setsockopt (new_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
-			  //              sizeof(timeout)) < 0)
-			    // perror("setsockopt failed\n");
+			if (setsockopt (new_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
+			                sizeof(timeout)) < 0)
+			    perror("setsockopt failed\n");
 
-			//if (setsockopt (new_fd, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout,
-			  //              sizeof(timeout)) < 0)
-			    // perror("setsockopt failed\n");
+			if (setsockopt (new_fd, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout,
+			                sizeof(timeout)) < 0)
+			    perror("setsockopt failed\n");
+			
 			
 			while((bytesRecieved = recv(new_fd, bufptr, bufSpace, 0)) > 0){
-				//printf("in while...\n");
+
 				for (int i = 0; i < bytesRecieved; i++){
 					request_input += bufptr[i]; 
 				}
@@ -258,6 +261,7 @@ void* doRequest(void* in){
 				request_formatted += "Host:" + host + "\r\n";
 			
 			request_formatted += "Connection:close\r\n";
+			request_formatted += "Accept:text/*, image/*, */*\r\n";
 			
 
 			for(int i = 3; i < index; i++){
@@ -280,9 +284,9 @@ void* doRequest(void* in){
 				
 				
 
-				if(option.compare("Accept") == 0){
-					//if(value.substr(0, 3) == ""){	
+				if(option.compare("Accept") == 0){	
 						isGood = false;
+						printf("%s", lines[i]);
 					}
 					
 					
@@ -362,7 +366,7 @@ void* doRequest(void* in){
 
 				memset(&hints1, 0, sizeof hints1);
 				hints1.ai_family = AF_UNSPEC;
-				hints1.ai_socktype = SOCK_STREAM;
+				hints1.ai_socktype = SOCK_STREAM | SOCK_NONBLOCK;
 				hints1.ai_flags = AI_PASSIVE; // use my IP
 
 				
@@ -397,17 +401,18 @@ void* doRequest(void* in){
 				freeaddrinfo(servinfo1); // all done with this structure
 
 
-				//struct timeval timeout;      
-			    //timeout.tv_sec = 7;
+				struct timeval timeout;      
+			    timeout.tv_sec = 7;
+			    timeout.tv_usec = 0;
 			    
 
-			 //   if (setsockopt (request_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
-			   ///             sizeof(timeout)) < 0)
-			      //  perror("setsockopt failed\n");
+			   if (setsockopt (request_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
+			                sizeof(timeout)) < 0)
+			        perror("setsockopt failed\n");
 
-			    //f (setsockopt (request_fd, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout,
-			       //         sizeof(timeout)) < 0)
-			    //    perror("setsockopt failed\n");
+			   if (setsockopt (request_fd, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout,
+			                sizeof(timeout)) < 0)
+			       perror("setsockopt failed\n");
 
 				int bytesToSend1 = request_formatted.length() +1;
 				char* final_format = new char[bytesToSend1];
@@ -556,10 +561,10 @@ int main(int argc, char* argv[])
 
 	while(1) {  // main accept() loop
 		sin_size = sizeof their_addr;
-		//while (numThreads == MAXTHREADS){
-		//	printf("waiting\n");
-		//	sleep(1);
-		//}
+		while (numThreads == MAXTHREADS){
+			printf("waiting\n");
+			sleep(1);
+		}
 		printf("Listening...\n");
 		new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
 		if (new_fd == -1)
