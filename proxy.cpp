@@ -76,33 +76,6 @@ void sendResponseToClient(std::string serverResponse, int new_fd){
 
 
 
-void sendResponseToClient(std::vector<char> byteHolder, int new_fd){
-
-	int bytesToSend2 = byteHolder.size();
-	int bytesSent2 = 0;
-	char* response_tosend = new char[byteHolder.size()];
-	for (int i = 0; (unsigned)i < byteHolder.size(); i++){
-		response_tosend[i] = byteHolder[i];
-		
-	}
-	//printf("sending to clint...");
-		  	
-	char* bufptr2 = response_tosend;
-		 	
-	while ((bytesSent2 = send(new_fd, bufptr2, bytesToSend2, 0)) > 0){
-		//	printf("sending to client...");
-			bytesToSend2 = bytesToSend2 - bytesSent2;
-			bufptr2 += bytesSent2;
-		
-			if (bytesToSend2 <1){
-				break;	
-			}
-	delete[] response_tosend;
-	
-	}
-			
-}
-
 void* doRequest(void* in){
 
 			int bytesRecieved = -2;
@@ -242,7 +215,6 @@ void* doRequest(void* in){
 			request_formatted += "Host:" + host + "\r\n";
 			
 			request_formatted += "Connection:close\r\n";
-			//request_formatted += "Accept:text/*, image/*\r\n"; //accept only simple HTTP/1.0 content, no fancy application content
 			
 
 			for(int i = 3; i < index; i++){
@@ -251,8 +223,7 @@ void* doRequest(void* in){
 					continue;
 				if (unformatted.find("Host", 0) != std::string::npos)
 					continue;
-				if (unformatted.find("Cookie", 0) != std::string::npos)
-					continue;
+				
 				request_formatted += lines[i]; 
 				request_formatted += "\r\n";
 
@@ -320,15 +291,15 @@ void* doRequest(void* in){
 
 			
 
-				int bytesToSend1 = request_formatted.length() +1;
+				int bytesToSend1 = request_formatted.length();
 				char* final_format = new char[bytesToSend1];
-				strcpy(final_format, request_formatted.c_str());
+				memcpy(final_format, request_formatted.c_str(), request_formatted.length());
 				int bytesSent1 = 0;
 			  	
 			    char* bufptr1 = final_format;
 			   
 			 	
-			    while ((bytesSent1 = send(request_fd, bufptr1, bytesToSend1, 0)) > 0){
+			    while ((bytesSent1 = send(request_fd, bufptr1, bytesToSend1, MSG_DONTWAIT)) > 0){
 
 					bytesToSend1 = bytesToSend1 - bytesSent1;
 					bufptr1 += bytesSent1;
@@ -359,7 +330,6 @@ void* doRequest(void* in){
 						curIndex++;
 					}
 
-					//byteHolder[bytesRecieved] = '\0';
 
 					int bytesToSend2 = bytesRecieved;
 					char* bufptr2 = recieveBuffer;
@@ -369,14 +339,14 @@ void* doRequest(void* in){
 						bytesToSend2 = bytesToSend2 - bytesSent2;
 						bufptr2 += bytesSent2;
 		
-					if (bytesToSend2 <1){
-						break;	
-					}
+						if (bytesToSend2 <1){
+							break;	
+						}
 
 
 				}
-			memset(bufptr, 0, MAXDATASIZE-1);
-			
+						memset(bufptr, 0, MAXDATASIZE-1);
+
 		
 		}
 			close(request_fd);
@@ -475,7 +445,6 @@ int main(int argc, char* argv[])
 	}
 
 
-	//printf("server: waiting for connections...\n");
 
 	while(1) {  // main accept() loop
 		sin_size = sizeof their_addr;
@@ -484,7 +453,7 @@ int main(int argc, char* argv[])
 		if (new_fd == -1)
 		{
 			//perror("accept error");
-			//exit(1);
+			continue;
 		}
 	
 		
@@ -492,7 +461,7 @@ int main(int argc, char* argv[])
 		 int* arg = &new_fd;
 	 
 		 pthread_create(&mythread, NULL, doRequest, (void*) arg);
-		 pthread_detach(mythread);
+		 pthread_detach(mythread); //can now reuse thread id
 		
 	}
       		
