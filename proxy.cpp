@@ -89,7 +89,8 @@ void sendResponseToClient(std::string serverResponse, int new_fd){
 			break;	
 		}
 		delete[] response_tosend;
-	}	
+	}
+	close(new_fd);	
 }
 
 
@@ -132,7 +133,7 @@ void* doRequest(void* in){
 			char* request = strtok(request_in, " ");
 			
 			if (request == NULL){
-				    serverResponse += "500 error: Internal Server error\n";
+				    serverResponse += "HTTP/1.0 500 error: Internal Server error\r\n";
 					sendResponseToClient(serverResponse, new_fd);
 					return NULL;
 
@@ -141,7 +142,7 @@ void* doRequest(void* in){
 			char* url = strtok(NULL, " ");
 
 			if (url == NULL){
-				    serverResponse += "500 error: Internal Server error\n";
+				    serverResponse += "HTTP/1.0 500 error: Internal Server error\r\n";
 					sendResponseToClient(serverResponse, new_fd);
 					return NULL;
 			}
@@ -228,8 +229,11 @@ void* doRequest(void* in){
 				request_formatted += "Host:" "www."+ host + "\r\n";
 			else
 			request_formatted += "Host:" + host + "\r\n";
-			
 			request_formatted += "Connection:close\r\n";
+			
+			
+
+			
 			
 
 			for(int i = 3; i < index; i++){
@@ -238,6 +242,7 @@ void* doRequest(void* in){
 					continue;
 				if (unformatted.find("Host", 0) != std::string::npos)
 					continue;
+				
 				
 				request_formatted += lines[i]; 
 				request_formatted += "\r\n";
@@ -251,11 +256,15 @@ void* doRequest(void* in){
 			request_formatted += "\r\n";
 
 			if (strcmp(lines[0], "GET") != 0){
-				serverResponse += "501 Error: Request type not supported\n";
+				serverResponse += "HTTP/1.0 501 Error: Request type not supported\r\n";
+				sendResponseToClient(serverResponse, new_fd);
+				return NULL;
 			}
 			// options formatting check
 			else if (!isFormated){
-				serverResponse += "500 Error: Internal Server error\n";
+				serverResponse += "HTTP/1.0 500 Error: Internal Server error\r\n";
+				sendResponseToClient(serverResponse, new_fd);
+				return NULL;
 			}
 			// proxy response piping
 			else{
@@ -270,7 +279,7 @@ void* doRequest(void* in){
 
 				
 				if ((rv1 = getaddrinfo(host.c_str(), port.c_str(), &hints1, &servinfo1)) != 0) {
-					serverResponse += "500 error: Internal Server error\n";
+					serverResponse += "HTTP/1.0 500 error: Internal Server error\r\n";
 					sendResponseToClient(serverResponse, new_fd);
 					return NULL;
 				}
@@ -279,12 +288,17 @@ void* doRequest(void* in){
 				for(p1 = servinfo1; p1 != NULL; p1 = p1->ai_next) {
 					if ((request_fd = socket(p1->ai_family, p1->ai_socktype,
 							p1->ai_protocol)) == -1) {
-
+						serverResponse += "HTTP/1.0 500 error: Internal Server error\r\n";
+						sendResponseToClient(serverResponse, new_fd);
+					
 						return NULL;
 					}
 
 					if (connect(request_fd, p1->ai_addr, p1->ai_addrlen) == -1) {
+						serverResponse += "HTTP/1.0 500 error: Internal Server error\r\n";
+						sendResponseToClient(serverResponse, new_fd);
 						close(request_fd);
+						
 						return NULL;
 					}
 
@@ -292,8 +306,9 @@ void* doRequest(void* in){
 				}
 
 				if (p1 == NULL) {
-					serverResponse += "500 error: Internal Server error\n";
+					serverResponse += "HTTP/1.0 500 error: Internal Server error\r\n";
 					sendResponseToClient(serverResponse, new_fd);
+					
 					return NULL; // will modularize in next version
 				}
 
@@ -326,31 +341,21 @@ void* doRequest(void* in){
 			
 				delete[] final_format;
 
-				std::vector<char> byteHolder(100);
-				int holderSize = 100;
-				int curIndex = 0;
+				
+	
 				bufptr = recieveBuffer;
+				memset(bufptr, 0, MAXDATASIZE-1);
 				bufSpace = MAXDATASIZE-1;
 				bool keepgoing = true;
 				while (keepgoing)
 				{
 					bytesRecieved = recv(request_fd, bufptr, bufSpace, 0);
 					if (bytesRecieved == 0)
-						keepgoing = false;
+						break;
 					if (bytesRecieved == -1)
 						break;
 
-					for (int i = 0; i < bytesRecieved; i++){
-						if (curIndex == holderSize){
-							byteHolder.resize(holderSize*2);
-							holderSize = holderSize*2;
-						}
-
-						byteHolder[curIndex] = bufptr[i];
 					
-						curIndex++;
-					}
-
 
 					
 					int val = sendall(new_fd, recieveBuffer, &bytesRecieved);
@@ -474,6 +479,7 @@ int main(int argc, char* argv[])
 	 
 		 pthread_create(&mythread, NULL, doRequest, (void*) arg);
 		 pthread_detach(mythread); //can now reuse thread id
+		 
 		
 	}
       		
